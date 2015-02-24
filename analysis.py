@@ -14,7 +14,6 @@ class MyPhoto():
         self.points = []
 
     def addPoint(self, newPoint=None):
-        print('ddcfj')
         if newPoint == None:
             newPoint = MyPoint()
         self.points.append(newPoint)
