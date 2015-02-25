@@ -23,13 +23,13 @@ class MyPhoto():
         # 'xy' -> Point
         # 'x,y' -> Sigma for x and y
         error_quad_sum = None
+        count = 0
         if what == 'xy':
             error_quad_sum = 0
         elif what == 'x,y':
             error_quad_sum = PhotoScan.Vector([0, 0])
 
 
-        count = 0
         for point in self.points:
             if what == 'xy':
                 error_quad_sum += point.error_I.norm() ** 2
@@ -63,12 +63,24 @@ class MyPoint():
         self.coord_W = coord_W
         self.coord_C = coord_C
         self.error_W = error_W
-        self.ratio_I_2_W = ratio_I_2_W
+
+
+    def projectSigma_2_W(self, sigma_I):
+        # sigma_W is equal to the length of the error_W vector
+        sigma_W = self.ratio_W_2_I * sigma_I
+
+        trimFaktor = sigma_W / self.error_W.norm()
+        return self.error_W * trimFaktor
+
+
 
     @property
     def error_I(self):
         return self.projection_I - self.measurement_I
 
+    @property
+    def ratio_W_2_I(self):
+        return self.error_W.norm() / self.error_I.norm()
 
 class MyProject():
     def __init__(self):
@@ -124,54 +136,30 @@ def calc_reprojection(chunk):
                 if not points[point_index].valid:
                     continue
 
-                # print (calib.project(T.mulp(points[point_index].coord)))#Pixel Coordinates
-                # print (proj.coord) #Position of Sift Operator in Pixel
-                point_C = T.mulp(points[point_index].coord)
-                # print (points[point_index].coord)
-                # pointonImage = calib.project(pointVec)
+                point_W = points[point_index].coord
+                point_C = T.mulp(point_W)
+                point_I = calib.project(point_C)
 
-                error_I = calib.error(
-                    T.mulp(points[point_index].coord), proj.coord)
+                measurement_I = proj.coord
+                measurement_C = calib.unproject(measurement_I)
+                error_I = calib.error(point_C, measurement_I)  # error = projection - measurement
+                #error_I_length = error_I.norm()
 
-                # Berechnung des Verbesserungsvektors im Kamerasystem
-                # point_C ist der 2D Verbesserungsvektor relativ zum Mittelpunkt
-                # im 3D Camerasystem (in Entfernung des Punktes)
-                # center_C ist der Mittelpunkt des Camerasystems in Entfernung des Punkte
-                # der Verbesserungsvektor V = point_C - center_C
-                #
-                point_C, center_C = trans_error_image_2_camera(
-                    camera, error_I, point_C)
+                error_C = point_C - measurement_C * point_C.z
+                #error_C_length = error_C.norm()
 
-                point_W = camera.transform.mulp(point_C)
-                center_W = camera.transform.mulp(center_C)
-                error_W = point_W - center_W
+                measurement_W = camera.transform.mulp(measurement_C * point_C.z)
+                error_W = point_W - measurement_W
+                # error_W_length = error_W.norm()
 
-                pointErrors_I[track_id].append(error_I)
-
-                pointErrors_W[track_id].append(error_W)
-                # test
-                #
-                # PointW = PhotoScan.Vector((20,30,40))
-                # PointI = T.mulp(PointW)
-                #
-                # PointWback = camera.transform.mulp(PointI)
-                # print (PointWback) # 20,40,40
-                #
-                #
+                #save Point in curren Photo
                 point = thisPhoto.addPoint()
                 point.track_id = track_id
-                point.projection_I = calib.project(
-                    T.mulp(points[point_index].coord))
-                point.measurement_I = proj.coord
+                point.projection_I = point_I
+                point.measurement_I = measurement_I
                 point.coord_C = point_C
                 point.coord_W = point_W
                 point.error_W = error_W
-                point.ratio_I_2_W = error_I.norm() / error_W.norm()
-
-                print(error_I)
-                print(point.error_I)
-                #
-                #
 
                 dist = error_I.norm() ** 2
 
@@ -313,8 +301,8 @@ if __name__ == '__main__':
     chunk = doc.chunk
 
     total_error, ind_error, allPhotos = calc_reprojection(chunk)
-    print(total_error)
-    print(ind_error)
+    # print(total_error)
+    #print(ind_error)
     print(vars(allPhotos[0].points[1]))
 
     #covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
