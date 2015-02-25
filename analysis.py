@@ -19,14 +19,33 @@ class MyPhoto():
         self.points.append(newPoint)
         return self.points[-1]
 
-    def calc_sigma(self):
-        error_quad_sum = 0
+    def calc_sigma(self, what='xy'):
+        # 'xy' -> Point
+        # 'x,y' -> Sigma for x and y
+        error_quad_sum = None
+        if what == 'xy':
+            error_quad_sum = 0
+        elif what == 'x,y':
+            error_quad_sum = PhotoScan.Vector([0, 0])
+
+
         count = 0
         for point in self.points:
-            error_quad_sum += point.error_I.norm ** 2
+            if what == 'xy':
+                error_quad_sum += point.error_I.norm() ** 2
+            elif what == 'x,y':
+                error_quad_sum.x += point.error_I.x ** 2
+                error_quad_sum.y += point.error_I.y ** 2
+
             count += 1
 
-        return (math.sqrt(error_quad_sum / count), error_quad_sum, count)
+        if what == 'xy':
+            return (math.sqrt(error_quad_sum / count), error_quad_sum, count)
+        elif what == 'x,y':
+            sigma_x = math.sqrt(error_quad_sum.x / count)
+            sigma_y = math.sqrt(error_quad_sum.y / count)
+            return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
+
 
 
 class MyPoint():
@@ -45,6 +64,11 @@ class MyPoint():
         self.coord_C = coord_C
         self.error_W = error_W
         self.ratio_I_2_W = ratio_I_2_W
+
+    @property
+    def error_I(self):
+        return self.projection_I - self.measurement_I
+
 
 class MyProject():
     def __init__(self):
@@ -144,6 +168,8 @@ def calc_reprojection(chunk):
                 point.error_W = error_W
                 point.ratio_I_2_W = error_I.norm() / error_W.norm()
 
+                print(error_I)
+                print(point.error_I)
                 #
                 #
 

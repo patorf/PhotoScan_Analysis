@@ -37,7 +37,6 @@ class TestMyPhoto(unittest.TestCase):
     photo.points.append(p2)
 
 
-
     def test_addPoint(self):
         photo= MyPhoto()
         photo.addPoint(self.p1)
@@ -50,8 +49,16 @@ class TestMyPhoto(unittest.TestCase):
 
 
     def test_calc_sigma(self):
-        self.fail()
+        sigma, error_quad, count = self.photo.calc_sigma('xy')
+        self.assertAlmostEqual(sigma, 0.400212071, 6)
+        self.assertAlmostEqual(error_quad, 0.320339404, 6)
 
+        sigma, error_quad, count = self.photo.calc_sigma('x,y')
+        self.assertAlmostEqual(sigma.x, 0.395994834, 6)
+        self.assertAlmostEqual(sigma.y, 0.057946469, 6)
+
+        self.assertAlmostEqual(error_quad.x, 0.313623818, 6)
+        self.assertAlmostEqual(error_quad.y, 0.006715587, 6)
 
 
 
