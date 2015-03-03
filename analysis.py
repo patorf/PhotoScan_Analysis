@@ -6,14 +6,18 @@ from collections import defaultdict
 from math import sqrt
 import warnings
 
-class MyPhoto():
 
+class MyPhoto():
     def __init__(self, label=None):
 
         self.label = label
         self.points = []
 
     def addPoint(self, newPoint=None):
+        """
+
+        :rtype : MyPoint
+        """
         if newPoint == None:
             newPoint = MyPoint()
         self.points.append(newPoint)
@@ -28,7 +32,6 @@ class MyPhoto():
             error_quad_sum = 0
         elif what == 'x,y':
             error_quad_sum = PhotoScan.Vector([0, 0])
-
 
         for point in self.points:
             if what == 'xy':
@@ -47,7 +50,6 @@ class MyPhoto():
             return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
 
 
-
 class MyPoint():
     def __init__(self, projection_I=None,
                  measurement_I=None,
@@ -56,22 +58,23 @@ class MyPoint():
                  coord_C=None,
                  error_W=None,
                  ratio_I_2_W=None):
-
         self.projection_I = projection_I
         self.measurement_I = measurement_I
         self.track_id = track_id
         self.coord_W = coord_W
         self.coord_C = coord_C
         self.error_W = error_W
+        self.sigma_I = None
 
 
-    def projectSigma_2_W(self, sigma_I):
+    def projectSigma_2_W(self, sigma_I=None):
+        if not sigma_I:
+            sigma_I = self.sigma_I
         # sigma_W is equal to the length of the error_W vector
         sigma_W = self.ratio_W_2_I * sigma_I
 
         trimFaktor = sigma_W / self.error_W.norm()
         return self.error_W * trimFaktor
-
 
 
     @property
@@ -82,14 +85,57 @@ class MyPoint():
     def ratio_W_2_I(self):
         return self.error_W.norm() / self.error_I.norm()
 
+
+class MyGlobalPoint():
+    def __init__(self):
+        self.points = []
+        self.cov_W = None
+        self.sigma_W = None
+
+    def calcCov_W(self):
+        X_list = []
+        summe = 0
+        for point in self.points:
+            assert isinstance(point, MyPoint)
+            std_error_W = point.projectSigma_2_W()
+            X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
+
+        X_matrix = PhotoScan.Matrix(X_list)
+
+        C = X_matrix.t() * X_matrix
+        C = C * (1 / (len(self.points) - 1))
+
+        self.cov_W = C
+
+
+
+
+
 class MyProject():
     def __init__(self):
         self.photos = []
+        self.points = defaultdict(MyGlobalPoint)
+
+
+    def buildGlobalPointError(self):
+        for photo in self.photos:
+            sigma_photo, error_quad_sum_photo, count_photo = photo.calc_sigma('xy')
+            assert isinstance(photo, MyPhoto)
+            for point in photo.points:
+                assert isinstance(point, MyPoint)
+                point.sigma_I = sigma_photo
+
+                self.points[point.track_id].points.append(point)
+
+
+
+
+
 
 
     def calcGlobalSigma(self, photos=None):
         if not photos:
-            photos=self.photos
+            photos = self.photos
 
         error_quad_sum = 0
         count = 0
@@ -143,7 +189,7 @@ def calc_reprojection(chunk):
                 measurement_I = proj.coord
                 measurement_C = calib.unproject(measurement_I)
                 error_I = calib.error(point_C, measurement_I)  # error = projection - measurement
-                #error_I_length = error_I.norm()
+                # error_I_length = error_I.norm()
 
                 error_C = point_C - measurement_C * point_C.z
                 #error_C_length = error_C.norm()
@@ -160,9 +206,13 @@ def calc_reprojection(chunk):
                 point.coord_C = point_C
                 point.coord_W = point_W
                 point.error_W = error_W
-
+                # print('ratio',point.ratio_W_2_I)
+                # print('disttocenter',point_C.norm())
+                print('error_W', point.error_W)
+                print('error_I', point.error_I)
+                print('--------------W', point.coord_C)
+                #[-0.25211071968078613, -0.04763663187623024, 5.12844181060791])
                 dist = error_I.norm() ** 2
-
                 err_sum += dist
                 num += 1
 
@@ -302,7 +352,7 @@ if __name__ == '__main__':
 
     total_error, ind_error, allPhotos = calc_reprojection(chunk)
     # print(total_error)
-    #print(ind_error)
+    # print(ind_error)
     print(vars(allPhotos[0].points[1]))
 
     #covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
