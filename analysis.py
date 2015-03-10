@@ -92,21 +92,27 @@ class MyGlobalPoint():
         self.cov_W = None
         self.sigma_W = None
 
-    def calcCov_W(self):
+    def calcCov_W_from_Std(self):
+        if len(self.points) <= 2:
+            return None
+
         X_list = []
-        summe = 0
+        summe1 = 0
+        summe2 = 0
+
         for point in self.points:
             assert isinstance(point, MyPoint)
             std_error_W = point.projectSigma_2_W()
+
             X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
 
+        print('x_list', X_list)
         X_matrix = PhotoScan.Matrix(X_list)
 
         C = X_matrix.t() * X_matrix
         C = C * (1 / (len(self.points) - 1))
 
         self.cov_W = C
-
 
 
 
@@ -118,21 +124,40 @@ class MyProject():
 
 
     def buildGlobalPointError(self):
+        maxP = PhotoScan.Vector([0, 0, 0])
+        minP = PhotoScan.Vector([0, 0, 0])
         for photo in self.photos:
             sigma_photo, error_quad_sum_photo, count_photo = photo.calc_sigma('xy')
             assert isinstance(photo, MyPhoto)
             for point in photo.points:
                 assert isinstance(point, MyPoint)
+                maxP.x = max(maxP.x, point.coord_W.x)
+                maxP.y = max(maxP.y, point.coord_W.y)
+                maxP.z = max(maxP.z, point.coord_W.z)
+
+                minP.x = min(minP.x, point.coord_W.x)
+                minP.y = min(minP.y, point.coord_W.y)
+                minP.z = min(minP.z, point.coord_W.z)
+
                 point.sigma_I = sigma_photo
 
                 self.points[point.track_id].points.append(point)
 
+        print(minP, maxP)
+
+    def calc_cov_for_all_points(self):
+
+        for trackid, point in self.points.items():
+            point.calcCov_W_from_Std()
+
+        for point in list(self.points.values())[99].points:
+            print(point.projectSigma_2_W())
+            print('w_point', point.coord_W)
+        print(list(self.points.values())[99].cov_W)
+        print('ready')
 
 
-
-
-
-
+    # not needet by this point
     def calcGlobalSigma(self, photos=None):
         if not photos:
             photos = self.photos
@@ -146,87 +171,89 @@ class MyProject():
         return (math.sqrt(error_quad_sum / count), count)
 
 
-def calc_reprojection(chunk):
-    allPhotos = []
-    point_cloud = chunk.point_cloud
+    def calc_reprojection(self, chunk):
+        allPhotos = self.photos
+        point_cloud = chunk.point_cloud
 
-    points = point_cloud.points
-    npoints = len(points)
-    projections = chunk.point_cloud.projections
+        points = point_cloud.points
+        npoints = len(points)
+        projections = chunk.point_cloud.projections
 
-    err_sum = 0
-    num = 0
+        err_sum = 0
+        num = 0
 
-    photo_avg = {}
+        photo_avg = {}
 
-    for camera in chunk.cameras:
-        if not camera.transform:
-            continue
+        for camera in chunk.cameras:
+            if not camera.transform:
+                continue
 
-        thisPhoto = MyPhoto(camera.label)
-        allPhotos.append(thisPhoto)
+            thisPhoto = MyPhoto(camera.label)
+            allPhotos.append(thisPhoto)
 
-        T = camera.transform.inv()
-        calib = camera.sensor.calibration
+            T = camera.transform.inv()
+            calib = camera.sensor.calibration
 
-        point_index = 0
+            point_index = 0
 
-        photo_num = 0
-        photo_err = 0
+            photo_num = 0
+            photo_err = 0
+            print(camera)
+            for proj in projections[camera]:
+                track_id = proj.track_id
+                while point_index < npoints and points[point_index].track_id < track_id:
+                    point_index += 1
+                if point_index < npoints and points[point_index].track_id == track_id:
+                    if not points[point_index].valid:
+                        continue
 
-        for proj in projections[camera]:
-            track_id = proj.track_id
-            while point_index < npoints and points[point_index].track_id < track_id:
-                point_index += 1
-            if point_index < npoints and points[point_index].track_id == track_id:
-                if not points[point_index].valid:
-                    continue
+                    point_W = points[point_index].coord
+                    point_C = T.mulp(point_W)
+                    point_I = calib.project(point_C)
 
-                point_W = points[point_index].coord
-                point_C = T.mulp(point_W)
-                point_I = calib.project(point_C)
+                    measurement_I = proj.coord
+                    measurement_C = calib.unproject(measurement_I)
+                    error_I = calib.error(point_C, measurement_I)  # error = projection - measurement
+                    # error_I_length = error_I.norm()
 
-                measurement_I = proj.coord
-                measurement_C = calib.unproject(measurement_I)
-                error_I = calib.error(point_C, measurement_I)  # error = projection - measurement
-                # error_I_length = error_I.norm()
+                    error_C = point_C - measurement_C * point_C.z
+                    # error_C_length = error_C.norm()
 
-                error_C = point_C - measurement_C * point_C.z
-                #error_C_length = error_C.norm()
+                    measurement_W = camera.transform.mulp(measurement_C * point_C.z)
+                    error_W = point_W - measurement_W
+                    # error_W_length = error_W.norm()
 
-                measurement_W = camera.transform.mulp(measurement_C * point_C.z)
-                error_W = point_W - measurement_W
-                # error_W_length = error_W.norm()
+                    # save Point in curren Photo
+                    if point_I:
+                        point = thisPhoto.addPoint()
 
-                #save Point in curren Photo
-                point = thisPhoto.addPoint()
-                point.track_id = track_id
-                point.projection_I = point_I
-                point.measurement_I = measurement_I
-                point.coord_C = point_C
-                point.coord_W = point_W
-                point.error_W = error_W
-                # print('ratio',point.ratio_W_2_I)
-                # print('disttocenter',point_C.norm())
-                print('error_W', point.error_W)
-                print('error_I', point.error_I)
-                print('--------------W', point.coord_C)
-                #[-0.25211071968078613, -0.04763663187623024, 5.12844181060791])
-                dist = error_I.norm() ** 2
-                err_sum += dist
-                num += 1
+                        point.track_id = track_id
+                        point.projection_I = point_I
+                        point.measurement_I = measurement_I
+                        point.coord_C = point_C
+                        point.coord_W = point_W
+                        point.error_W = error_W
+                        # print('ratio',point.ratio_W_2_I)
+                        # print('disttocenter',point_C.norm())
+                        # print('error_W', point.error_W)
+                        #  print('error_I', point.error_I)
+                        #  print('--------------W', point.coord_C)
+                    # [-0.25211071968078613, -0.04763663187623024, 5.12844181060791])
+                    dist = error_I.norm() ** 2
+                    err_sum += dist
+                    num += 1
 
-                photo_num += 1
-                photo_err += dist
+                    photo_num += 1
+                    photo_err += dist
 
-                photo_avg[camera.label] = (
-                    math.sqrt(photo_err / photo_num), photo_num)
+                    photo_avg[camera.label] = (
+                        math.sqrt(photo_err / photo_num), photo_num)
 
-        sigma = math.sqrt(err_sum / num)
+            sigma = math.sqrt(err_sum / num)
 
-    rep_avg = sigma
+        rep_avg = sigma
 
-    return (rep_avg, photo_avg, allPhotos)
+        return (rep_avg, photo_avg, allPhotos)
 
 
 def trans_error_image_2_camera(camera, point_pix, point_Camera):
@@ -248,7 +275,6 @@ def trans_error_image_2_camera(camera, point_pix, point_Camera):
 
 def calc_Cov_4_Point(pointError):
     X_list = []
-    summe = 0
     for error in pointError:
         X_list.append([error.x, error.y, error.z])
 
@@ -350,10 +376,14 @@ if __name__ == '__main__':
     doc = PhotoScan.app.document
     chunk = doc.chunk
 
-    total_error, ind_error, allPhotos = calc_reprojection(chunk)
+    project = MyProject()
+    total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
+    project.buildGlobalPointError()
+    project.calc_cov_for_all_points()
+
     # print(total_error)
     # print(ind_error)
-    print(vars(allPhotos[0].points[1]))
+    # print(vars(allPhotos[0].points[1]))
 
     #covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
 
