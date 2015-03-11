@@ -23,31 +23,22 @@ class MyPhoto():
         self.points.append(newPoint)
         return self.points[-1]
 
-    def calc_sigma(self, what='xy'):
+    def calc_sigma(self):
         # 'xy' -> Point
         # 'x,y' -> Sigma for x and y
         error_quad_sum = None
         count = 0
-        if what == 'xy':
-            error_quad_sum = 0
-        elif what == 'x,y':
-            error_quad_sum = PhotoScan.Vector([0, 0])
+        error_quad_sum = PhotoScan.Vector([0, 0])
 
         for point in self.points:
-            if what == 'xy':
-                error_quad_sum += point.error_I.norm() ** 2
-            elif what == 'x,y':
-                error_quad_sum.x += point.error_I.x ** 2
-                error_quad_sum.y += point.error_I.y ** 2
+            error_quad_sum.x += point.error_I.x ** 2
+            error_quad_sum.y += point.error_I.y ** 2
 
             count += 1
 
-        if what == 'xy':
-            return (math.sqrt(error_quad_sum / count), error_quad_sum, count)
-        elif what == 'x,y':
-            sigma_x = math.sqrt(error_quad_sum.x / count)
-            sigma_y = math.sqrt(error_quad_sum.y / count)
-            return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
+        sigma_x = math.sqrt(error_quad_sum.x / count)
+        sigma_y = math.sqrt(error_quad_sum.y / count)
+        return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
 
 
 class MyPoint():
@@ -92,27 +83,27 @@ class MyGlobalPoint():
         self.cov_W = None
         self.sigma_W = None
 
-    def calcCov_W_from_Std(self):
-        if len(self.points) <= 2:
-            return None
-
-        X_list = []
-        summe1 = 0
-        summe2 = 0
-
-        for point in self.points:
-            assert isinstance(point, MyPoint)
-            std_error_W = point.projectSigma_2_W()
-
-            X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
-
-        print('x_list', X_list)
-        X_matrix = PhotoScan.Matrix(X_list)
-
-        C = X_matrix.t() * X_matrix
-        C = C * (1 / (len(self.points) - 1))
-
-        self.cov_W = C
+        # def calcCov_W_from_Std(self):
+        # if len(self.points) <= 2:
+        #         return None
+        #
+        #     X_list = []
+        #     summe1 = 0
+        #     summe2 = 0
+        #
+        #     for point in self.points:
+        #         assert isinstance(point, MyPoint)
+        #         std_error_W = point.projectSigma_2_W()
+        #
+        #         X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
+        #
+        #     print('x_list', X_list)
+        #     X_matrix = PhotoScan.Matrix(X_list)
+        #
+        #     C = X_matrix.t() * X_matrix
+        #     C = C * (1 / (len(self.points) - 1))
+        #
+        #     self.cov_W = C
 
 
 
@@ -146,16 +137,12 @@ class MyProject():
         print(minP, maxP)
 
     def calc_cov_for_all_points(self):
+        pass
+        # for trackid, point in self.points.items():
+        #    point.calcCov_W_from_Std()
 
-        for trackid, point in self.points.items():
-            point.calcCov_W_from_Std()
-
-        for point in list(self.points.values())[99].points:
-            print(point.projectSigma_2_W())
-            print('w_point', point.coord_W)
-        print(list(self.points.values())[99].cov_W)
-        print('ready')
-
+        # for point in list(self.points.values())[99].points:
+        #pass
 
     # not needet by this point
     def calcGlobalSigma(self, photos=None):

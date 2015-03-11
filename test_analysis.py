@@ -50,11 +50,7 @@ class TestMyPhoto(unittest.TestCase):
 
 
     def test_calc_sigma(self):
-        sigma, error_quad, count = self.photo.calc_sigma('xy')
-        self.assertAlmostEqual(sigma, 0.400212071, 6)
-        self.assertAlmostEqual(error_quad, 0.320339404, 6)
-
-        sigma, error_quad, count = self.photo.calc_sigma('x,y')
+        sigma, error_quad, count = self.photo.calc_sigma()
         self.assertAlmostEqual(sigma.x, 0.395994834, 6)
         self.assertAlmostEqual(sigma.y, 0.057946469, 6)
 
@@ -83,11 +79,7 @@ class TestGlobalPoint(unittest.TestCase):
     gp1.points.append(p1)
     gp1.points.append(p1)
 
-    def test_clacCov_W_from_Std(self):
-        self.gp1.calcCov_W_from_Std()
 
-        print(self.gp1.cov_W)
-        self.fail()
 
 
 
