@@ -29,16 +29,39 @@ class MyPhoto():
         error_quad_sum = None
         count = 0
         error_quad_sum = PhotoScan.Vector([0, 0])
+        errorMatrix = self.getErrorMatrix()
 
+        # error_quad_sum.x += point.error_I.x ** 2
+        #    error_quad_sum.y += point.error_I.y ** 2
+
+        # count += 1
+
+        # sigma_x = math.sqrt(error_quad_sum.x / count)
+        #sigma_y = math.sqrt(error_quad_sum.y / count)
+
+        cov = calc_Cov_from_ErrorMatrix(errorMatrix)
+        sigma_x = math.sqrt(cov[0, 0])
+        sigma_y = math.sqrt(cov[1, 1])
+
+        print(math.sqrt(sigma_y ** 2 + sigma_x ** 2))  #RMS in Pixel per Image
+        #return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
+        return (PhotoScan.Vector([sigma_x, sigma_y]))
+
+    def getExtremError(self):
+        errorMatrix = self.getErrorMatrix()
+
+        maxError = PhotoScan.Vector((0, 0))
+
+        maxError.x = max(abs(l[0]) for l in errorMatrix)
+        maxError.y = max(abs(l[1]) for l in errorMatrix)
+
+        return maxError
+
+    def getErrorMatrix(self):
+        errorMatrix = []
         for point in self.points:
-            error_quad_sum.x += point.error_I.x ** 2
-            error_quad_sum.y += point.error_I.y ** 2
-
-            count += 1
-
-        sigma_x = math.sqrt(error_quad_sum.x / count)
-        sigma_y = math.sqrt(error_quad_sum.y / count)
-        return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
+            errorMatrix.append([point.error_I.x, point.error_I.y])
+        return errorMatrix
 
 
 class MyPoint():
@@ -118,7 +141,7 @@ class MyProject():
         maxP = PhotoScan.Vector([0, 0, 0])
         minP = PhotoScan.Vector([0, 0, 0])
         for photo in self.photos:
-            sigma_photo, error_quad_sum_photo, count_photo = photo.calc_sigma('xy')
+            sigma_photo, error_quad_sum_photo, count_photo = photo.calc_sigma()
             assert isinstance(photo, MyPhoto)
             for point in photo.points:
                 assert isinstance(point, MyPoint)
@@ -260,15 +283,15 @@ def trans_error_image_2_camera(camera, point_pix, point_Camera):
     return point_C, center_C
 
 
-def calc_Cov_4_Point(pointError):
-    X_list = []
-    for error in pointError:
-        X_list.append([error.x, error.y, error.z])
+def calc_Cov_from_ErrorMatrix(errorMatrix):
+    # X_list = []
+    #for error in pointError:
+    #    X_list.append([error.x, error.y, error.z])
 
-    X_matrix = PhotoScan.Matrix(X_list)
+    X_matrix = PhotoScan.Matrix(errorMatrix)
 
     C = X_matrix.t() * X_matrix
-    C = C * (1 / (len(pointError) - 1))
+    C = C * (1 / (len(errorMatrix) ))
 
     return C
 

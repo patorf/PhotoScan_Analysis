@@ -50,12 +50,20 @@ class TestMyPhoto(unittest.TestCase):
 
 
     def test_calc_sigma(self):
-        sigma, error_quad, count = self.photo.calc_sigma()
+        # sigma, error_quad, count = self.photo.calc_sigma()
+        sigma = self.photo.calc_sigma()
         self.assertAlmostEqual(sigma.x, 0.395994834, 6)
         self.assertAlmostEqual(sigma.y, 0.057946469, 6)
 
-        self.assertAlmostEqual(error_quad.x, 0.313623818, 6)
-        self.assertAlmostEqual(error_quad.y, 0.006715587, 6)
+        # self.assertAlmostEqual(error_quad.x, 0.313623818, 6)
+        #self.assertAlmostEqual(error_quad.y, 0.006715587, 6)
+
+    def test_gestExtremError(self):
+        maxError = self.photo.getExtremError()
+        self.assertAlmostEqual(maxError.x, 0.5565147, 5)
+        self.assertAlmostEqual(maxError.y, 0.0790828, 5)
+
+
 
 
 class TestMyPoint(unittest.TestCase):
@@ -80,14 +88,28 @@ class TestGlobalPoint(unittest.TestCase):
     gp1.points.append(p1)
 
 
+class TestAnalysis(unittest.TestCase):
+    errorMatrix = [[1.6, 1.7],
+                   [0.6, 0.6],
+                   [-0.4, -0.4],
+                   [-1.4, -1.4],
+                   [-0.3, -0.4]]
 
+    def test_calc_Cov_from_ErrorMatrix(self):
+        cov = analysis.calc_Cov_from_ErrorMatrix(self.errorMatrix)
+        var_x = cov[0, 0]
+        var_y = cov[1, 1]
+        cov_xy = cov[0, 1]
+        self.assertAlmostEqual(var_x, 1.026, 4)
+        self.assertAlmostEqual(var_y, 1.10600, 4)
+        self.assertAlmostEqual(cov_xy, 1.064,4)
 
 
 
 if __name__ == '__main__':
 
 
-    test_classes_to_run = [TestMyPhoto, TestMyPoint, TestGlobalPoint]
+    test_classes_to_run = [TestMyPhoto, TestMyPoint, TestAnalysis, TestGlobalPoint]
 
     loader = unittest.TestLoader()
 
