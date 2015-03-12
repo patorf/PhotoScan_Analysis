@@ -3,12 +3,14 @@ __author__ = 'philipp.atorf'
 from analysis import MyPoint
 from analysis import MyPhoto
 from analysis import MyGlobalPoint
+from analysis import MyProject
 import analysis
 import imp
 imp.reload(analysis)
 from analysis import MyPhoto
 from analysis import MyPoint
 from analysis import MyGlobalPoint
+from analysis import MyProject
 
 import sys
 import unittest
@@ -88,12 +90,30 @@ class TestGlobalPoint(unittest.TestCase):
     gp1.points.append(p1)
 
 
+class TestMyProject(unittest.TestCase):
+    def test_calcGlobalSigma(self):
+        pho1 = MyPhoto()
+        pho1.calc_sigma = lambda: PhotoScan.Vector((2, 13))
+
+        pho2 = MyPhoto()
+        pho2.calc_sigma = lambda: PhotoScan.Vector((5, 11))
+
+        project = MyProject()
+        project.photos = [pho1, pho2]
+
+        rms_x, rms_y = project.getRMS_4_all_Photos()
+        self.assertAlmostEqual(rms_x, 3.807886553, 6)
+        self.assertAlmostEqual(rms_y, 12.04159458, 6)
+
+
+
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
                    [0.6, 0.6],
                    [-0.4, -0.4],
                    [-1.4, -1.4],
                    [-0.3, -0.4]]
+
 
     def test_calc_Cov_from_ErrorMatrix(self):
         cov = analysis.calc_Cov_from_ErrorMatrix(self.errorMatrix)
@@ -109,7 +129,7 @@ class TestAnalysis(unittest.TestCase):
 if __name__ == '__main__':
 
 
-    test_classes_to_run = [TestMyPhoto, TestMyPoint, TestAnalysis, TestGlobalPoint]
+    test_classes_to_run = [TestMyPhoto, TestMyPoint, TestAnalysis, TestGlobalPoint, TestMyProject]
 
     loader = unittest.TestLoader()
 

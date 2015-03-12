@@ -40,10 +40,8 @@ class MyPhoto():
         #sigma_y = math.sqrt(error_quad_sum.y / count)
 
         cov = calc_Cov_from_ErrorMatrix(errorMatrix)
-        print(cov)
         sigma_x = math.sqrt(cov[0, 0])
         sigma_y = math.sqrt(cov[1, 1])
-        print(math.sqrt(sigma_y ** 2 + sigma_x ** 2))  #RMS in Pixel per Image
         #return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
         return (PhotoScan.Vector([sigma_x, sigma_y]))
 
@@ -79,19 +77,18 @@ class MyPhoto():
 
         return str
 
-    def printReportLine(self, header=False):
+    def printReportLine(self):
 
         str = ''
         sigma = self.calc_sigma()
         maxError = self.getMax()
-        str += '{:>12s}{:14d}{:9.5f}{:9.5f}{:9.5f}{:9.5f}{:9.5f}'.format(self.label,
+        str += '{:>12s}{:14d}{:9.5f}{:9.5f}{:9.5f}{:9.5f}{:9.5f}\n'.format(self.label,
                                                                          len(self.points),
                                                                          sigma.x,
                                                                          sigma.y,
                                                                          sigma.norm(),
                                                                          maxError.x,
                                                                          maxError.y)
-        str += '\n'
 
         return str
 
@@ -205,17 +202,22 @@ class MyProject():
         #pass
 
     # not needet by this point
-    def calcGlobalSigma(self, photos=None):
+    def getRMS_4_all_Photos(self, photos=None):
         if not photos:
             photos = self.photos
 
-        error_quad_sum = 0
-        count = 0
+        var_x_sum = 0
+        var_y_sum = 0
         for photo in photos:
-            sigma_photo, error_quad_sum_photo, count_photo = photo.calc_sigma()
-            error_quad_sum += error_quad_sum_photo
-            count += count_photo
-        return (math.sqrt(error_quad_sum / count), count)
+            sigma_photo = photo.calc_sigma()
+            var_x_sum += sigma_photo.x ** 2
+            var_y_sum += sigma_photo.y ** 2
+
+        rms_x = math.sqrt(var_x_sum / len(photos))
+        rms_y = math.sqrt(var_y_sum / len(photos))
+
+        return rms_x, rms_y
+
 
 
     def calc_reprojection(self, chunk):
@@ -245,7 +247,6 @@ class MyProject():
 
             photo_num = 0
             photo_err = 0
-            print(camera)
             for proj in projections[camera]:
                 track_id = proj.track_id
                 while point_index < npoints and points[point_index].track_id < track_id:
@@ -309,7 +310,7 @@ class MyProject():
             assert isinstance(phots, MyPhoto)
             str += phots.printReportLine()
         print(str)
-
+        return str
 
 
 
