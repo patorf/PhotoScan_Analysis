@@ -40,14 +40,14 @@ class MyPhoto():
         #sigma_y = math.sqrt(error_quad_sum.y / count)
 
         cov = calc_Cov_from_ErrorMatrix(errorMatrix)
+        print(cov)
         sigma_x = math.sqrt(cov[0, 0])
         sigma_y = math.sqrt(cov[1, 1])
-
         print(math.sqrt(sigma_y ** 2 + sigma_x ** 2))  #RMS in Pixel per Image
         #return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
         return (PhotoScan.Vector([sigma_x, sigma_y]))
 
-    def getExtremError(self):
+    def getMax(self):
         errorMatrix = self.getErrorMatrix()
 
         maxError = PhotoScan.Vector((0, 0))
@@ -62,6 +62,43 @@ class MyPhoto():
         for point in self.points:
             errorMatrix.append([point.error_I.x, point.error_I.y])
         return errorMatrix
+
+
+    @classmethod
+    def printReportHeader(cls):
+
+
+        str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n'.format('Cam #',
+                                                                             'Projections',
+                                                                             'SIG x',
+                                                                             'SIG y',
+                                                                             'SIG P',
+                                                                             'MAX x',
+                                                                             'MAX y'
+                                                                             )
+
+        return str
+
+    def printReportLine(self, header=False):
+
+        str = ''
+        sigma = self.calc_sigma()
+        maxError = self.getMax()
+        str += '{:>12s}{:14d}{:9.5f}{:9.5f}{:9.5f}{:9.5f}{:9.5f}'.format(self.label,
+                                                                         len(self.points),
+                                                                         sigma.x,
+                                                                         sigma.y,
+                                                                         sigma.norm(),
+                                                                         maxError.x,
+                                                                         maxError.y)
+        str += '\n'
+
+        return str
+
+
+
+
+
 
 
 class MyPoint():
@@ -141,7 +178,7 @@ class MyProject():
         maxP = PhotoScan.Vector([0, 0, 0])
         minP = PhotoScan.Vector([0, 0, 0])
         for photo in self.photos:
-            sigma_photo, error_quad_sum_photo, count_photo = photo.calc_sigma()
+            sigma_photo = photo.calc_sigma()
             assert isinstance(photo, MyPhoto)
             for point in photo.points:
                 assert isinstance(point, MyPoint)
@@ -264,6 +301,17 @@ class MyProject():
         rep_avg = sigma
 
         return (rep_avg, photo_avg, allPhotos)
+
+    def printReport(self):
+        str = ""
+        str += MyPhoto.printReportHeader()
+        for phots in self.photos:
+            assert isinstance(phots, MyPhoto)
+            str += phots.printReportLine()
+        print(str)
+
+
+
 
 
 def trans_error_image_2_camera(camera, point_pix, point_Camera):
@@ -390,6 +438,7 @@ if __name__ == '__main__':
     total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
     project.buildGlobalPointError()
     project.calc_cov_for_all_points()
+    project.printReport()
 
     # print(total_error)
     # print(ind_error)

@@ -59,7 +59,7 @@ class TestMyPhoto(unittest.TestCase):
         #self.assertAlmostEqual(error_quad.y, 0.006715587, 6)
 
     def test_gestExtremError(self):
-        maxError = self.photo.getExtremError()
+        maxError = self.photo.getMax()
         self.assertAlmostEqual(maxError.x, 0.5565147, 5)
         self.assertAlmostEqual(maxError.y, 0.0790828, 5)
 
