@@ -105,7 +105,7 @@ class MyPhoto(object):
 
     def getPhotsSVG(self):
         # SVG Attributes
-        width_svg = 600
+        width_svg = 700
         labelpos = (10, 16)
         imagepos = (0, 20)
         radius = 2
@@ -115,7 +115,7 @@ class MyPhoto(object):
 
         group = g()
 
-        label = text(self.label, *labelpos)
+        label = text(self.printReportLine(), *labelpos)
         textStyle = StyleBuilder()
         textStyle.setFontSize('16')
         label.set_style(textStyle.getStyle())
@@ -127,16 +127,23 @@ class MyPhoto(object):
         image_ratio = width_I / height_I
         height_svg = width_svg / image_ratio
 
+        def transform2SVG(x_image, y_image):
+            x_svg = x_image * width_svg / width_I
+            y_svg = y_image * height_svg / height_I
+
+            return (int(x_svg), int(y_svg))
+
         imageGroup = g()
 
         imageFrame = shapeBuilder.createRect(0, 0, width_svg, height_svg, 0, 0, strokewidth=1, stroke='navy')
         imageGroup.addElement(imageFrame)
         for point in self.points:
-            point_x = int(point.measurement_I.x * width_svg / width_I)
-            point_y = int(point.measurement_I.y * height_svg / height_I)
+            point_x, point_y = transform2SVG(point.measurement_I.x,
+                                             point.measurement_I.y)
 
             point_pos = shapeBuilder.createCircle(point_x, point_y, radius, circle_stroke)  # ,fill='rgba(0,0,0,1)')
             imageGroup.addElement(point_pos)
+            imageGroup.addElement(self.drawErrorVector(100, point, transform2SVG))
 
         # Image Group Translation
         transImage = TransformBuilder()
@@ -148,7 +155,22 @@ class MyPhoto(object):
         totalHeight = imagepos[1] + height_svg
         return group, totalHeight
 
+    def drawErrorVector(self, factor, point, transformatioin):
+        """
+        :type factor: int
+        :type point: MyPoint
+        :type transformatioin: (float,float)->(int,int)
+        """
 
+        error_vector = point.error_I * factor
+        endpoint = point.measurement_I + error_vector
+        x0, y0 = transformatioin(point.measurement_I.x, point.measurement_I.y)
+        x1, y1 = transformatioin(endpoint.x, endpoint.y)
+
+        sha = ShapeBuilder()
+        errorLine = sha.createLine(x0, y0, x1, y1, 1)
+
+        return errorLine
 
 
 class MyPoint():
