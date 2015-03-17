@@ -1,17 +1,27 @@
+import copy
+
 __author__ = 'philipp.atorf'
 
 import math
-import PhotoScan
 from collections import defaultdict
 from math import sqrt
-import warnings
+
+import PhotoScan
+from pysvg.builders import *
+import pysvg
+
+import imp
+
+imp.reload(pysvg)
+from pysvg.builders import *
 
 
-class MyPhoto():
+class MyPhoto(object):
     def __init__(self, label=None):
 
         self.label = label
         self.points = []
+        self.photoscanCamera = None
 
     def addPoint(self, newPoint=None):
         """
@@ -93,7 +103,50 @@ class MyPhoto():
         return str
 
 
+    def getPhotsSVG(self):
+        # SVG Attributes
+        width_svg = 600
+        labelpos = (10, 16)
+        imagepos = (0, 20)
+        radius = 2
+        circle_stroke = 1
 
+        shapeBuilder = ShapeBuilder()
+
+        group = g()
+
+        label = text(self.label, *labelpos)
+        textStyle = StyleBuilder()
+        textStyle.setFontSize('16')
+        label.set_style(textStyle.getStyle())
+
+        group.addElement(label)
+
+        width_I = self.photoscanCamera.sensor.width
+        height_I = self.photoscanCamera.sensor.height
+        image_ratio = width_I / height_I
+        height_svg = width_svg / image_ratio
+
+        imageGroup = g()
+
+        imageFrame = shapeBuilder.createRect(0, 0, width_svg, height_svg, 0, 0, strokewidth=1, stroke='navy')
+        imageGroup.addElement(imageFrame)
+        for point in self.points:
+            point_x = int(point.measurement_I.x * width_svg / width_I)
+            point_y = int(point.measurement_I.y * height_svg / height_I)
+
+            point_pos = shapeBuilder.createCircle(point_x, point_y, radius, circle_stroke)  # ,fill='rgba(0,0,0,1)')
+            imageGroup.addElement(point_pos)
+
+        # Image Group Translation
+        transImage = TransformBuilder()
+        transImage.setTranslation(*imagepos)
+        imageGroup.set_transform(transImage.getTransform())
+
+        group.addElement(imageGroup)
+
+        totalHeight = imagepos[1] + height_svg
+        return group, totalHeight
 
 
 
@@ -168,10 +221,18 @@ class MyGlobalPoint():
 class MyProject():
     def __init__(self):
         self.photos = []
+        """:type: list[MyPhoto]"""
+
         self.points = defaultdict(MyGlobalPoint)
+        self.path = PhotoScan.app.document.path
+        self.directory = "\\".join(self.path.split('\\')[:-1])
+
+
+
 
 
     def buildGlobalPointError(self):
+
         maxP = PhotoScan.Vector([0, 0, 0])
         minP = PhotoScan.Vector([0, 0, 0])
         for photo in self.photos:
@@ -191,7 +252,6 @@ class MyProject():
 
                 self.points[point.track_id].points.append(point)
 
-        print(minP, maxP)
 
     def calc_cov_for_all_points(self):
         pass
@@ -209,6 +269,7 @@ class MyProject():
         var_x_sum = 0
         var_y_sum = 0
         for photo in photos:
+
             sigma_photo = photo.calc_sigma()
             var_x_sum += sigma_photo.x ** 2
             var_y_sum += sigma_photo.y ** 2
@@ -238,6 +299,7 @@ class MyProject():
                 continue
 
             thisPhoto = MyPhoto(camera.label)
+            thisPhoto.photoscanCamera = camera
             allPhotos.append(thisPhoto)
 
             T = camera.transform.inv()
@@ -304,13 +366,68 @@ class MyProject():
         return (rep_avg, photo_avg, allPhotos)
 
     def printReport(self):
+        filename = 'report.txt'
+
         str = ""
         str += MyPhoto.printReportHeader()
         for phots in self.photos:
             assert isinstance(phots, MyPhoto)
             str += phots.printReportLine()
+
+        str += '\n'
+        rms_x, rms_y = self.getRMS_4_all_Photos()
+        str += '{:>26s}{:9.5f}{:9.5f}'.format('RMS:', rms_x, rms_y)
+
+
+
         print(str)
-        return str
+
+        f = open(self.directory + '\\' + filename, 'w')
+        f.write(str)
+        f.close()
+        print('save file ', filename, ' to: ', self.directory)
+
+
+    def createProjectSVG(self):
+        filename = 'imageMeasurements.svg'
+
+        s = svg()
+        i = 0
+        totolHeight = 0
+        for photo in self.photos:
+            photoSVG_group, groupHeight = photo.getPhotsSVG()
+
+            photoSVG_group_copy = copy.deepcopy(photoSVG_group)
+            assert isinstance(photoSVG_group_copy, g)
+
+            if i == 0:
+                # the First Image show all features
+                i = 1
+                textelement = photoSVG_group_copy.getElementAt(0)
+                assert isinstance(textelement, text)
+                textelement._subElements[0].content = "All Photos"
+            else:
+                # avoid label overlay
+                del (photoSVG_group_copy._subElements[0])
+
+            s.addElement(photoSVG_group_copy)
+
+
+            # Group Transformation
+            trans = TransformBuilder()
+            trans.setTranslation(0, groupHeight * i)
+            photoSVG_group.set_transform(trans.getTransform())
+
+            s.addElement(photoSVG_group)
+            totolHeight += groupHeight
+            i += 1
+
+        s.set_height(totolHeight)
+
+        s.save(self.directory + '\\' + filename)
+        print('save file ', filename, ' to: ', self.directory)
+
+
 
 
 
@@ -421,6 +538,8 @@ def export_No_xyz_std(points, covs_Dict):
     print('output finish')
 
 
+
+
 if __name__ == '__main__':
     testPointError = [PhotoScan.Vector((1, 2, 1.4)), PhotoScan.Vector(
         (-1.2, 1, 2.3)), PhotoScan.Vector((-1.4, 2, 3))]
@@ -441,9 +560,11 @@ if __name__ == '__main__':
     project.calc_cov_for_all_points()
     project.printReport()
 
+    project.createProjectSVG()
     # print(total_error)
     # print(ind_error)
     # print(vars(allPhotos[0].points[1]))
+
 
     #covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
 

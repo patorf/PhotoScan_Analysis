@@ -65,6 +65,33 @@ class TestMyPhoto(unittest.TestCase):
         self.assertAlmostEqual(maxError.x, 0.5565147, 5)
         self.assertAlmostEqual(maxError.y, 0.0790828, 5)
 
+    def test_createSVG(self):
+        photo = MyPhoto()
+        photo.addPoint(p1)
+        photo.addPoint(p2)
+        photo.label = "test_Label"
+        p_bottom_left = PhotoScan.Vector((0, 2000))
+        p_bottom_right = PhotoScan.Vector((2000, 2000))
+        p_upper_left = PhotoScan.Vector((0, 0))
+        p_upper_right = PhotoScan.Vector((2000, 0))
+        photo.addPoint(MyPoint(measurement_I=p_bottom_left, projection_I=p_bottom_left))
+        photo.addPoint(MyPoint(measurement_I=p_bottom_right, projection_I=p_bottom_right))
+        photo.addPoint(MyPoint(measurement_I=p_upper_left, projection_I=p_upper_left))
+        photo.addPoint(MyPoint(measurement_I=p_upper_right, projection_I=p_upper_right))
+
+        class psSensor():
+            height = 2000
+            width = 2000
+
+        class psCamera():
+            sensor = psSensor()
+
+        cam_dummy = psCamera()
+
+        photo.photoscanCamera = cam_dummy
+
+        photo.getPhotsSVG()
+        self.fail()
 
 
 
@@ -91,21 +118,21 @@ class TestGlobalPoint(unittest.TestCase):
 
 
 class TestMyProject(unittest.TestCase):
+    pho1 = MyPhoto()
+    pho1.calc_sigma = lambda: PhotoScan.Vector((2, 13))
+
+    pho2 = MyPhoto()
+    pho2.calc_sigma = lambda: PhotoScan.Vector((5, 11))
+
+    project = MyProject()
+    project.photos = [pho1, pho2]
     def test_calcGlobalSigma(self):
-        pho1 = MyPhoto()
-        pho1.calc_sigma = lambda: PhotoScan.Vector((2, 13))
-
-        pho2 = MyPhoto()
-        pho2.calc_sigma = lambda: PhotoScan.Vector((5, 11))
-
-        project = MyProject()
-        project.photos = [pho1, pho2]
-
-        rms_x, rms_y = project.getRMS_4_all_Photos()
+        rms_x, rms_y = self.project.getRMS_4_all_Photos()
         self.assertAlmostEqual(rms_x, 3.807886553, 6)
         self.assertAlmostEqual(rms_y, 12.04159458, 6)
 
-
+    def test_createProjectSVG(self):
+        self.project.createProjectSVG()
 
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
