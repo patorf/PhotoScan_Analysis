@@ -143,7 +143,7 @@ class MyPhoto(object):
 
             point_pos = shapeBuilder.createCircle(point_x, point_y, radius, circle_stroke)  # ,fill='rgba(0,0,0,1)')
             imageGroup.addElement(point_pos)
-            imageGroup.addElement(self.drawErrorVector(100, point, transform2SVG))
+            imageGroup.addElement(self.drawErrorVector(20, point, transform2SVG))
 
         # Image Group Translation
         transImage = TransformBuilder()
@@ -171,6 +171,32 @@ class MyPhoto(object):
         errorLine = sha.createLine(x0, y0, x1, y1, 1)
 
         return errorLine
+
+    def getErrorRaster(self, cols=22):
+
+        width_I = self.photoscanCamera.sensor.width
+        height_I = self.photoscanCamera.sensor.height
+
+        size = width_I / cols
+        rows = int(height_I / size + 0.5)
+        # cols += 1 #fall nicht kann das array zu kurz sein falls ein punkt genau am bildrand liegt
+        #errorRaster=[]
+        #for row in range(rows): errorRaster += [[PhotoScan.Vector((0,0))]*cols]
+        errorRaster = [[PhotoScan.Vector((0, 0)) for x in range(cols)] for x in range(rows)]
+
+        for point in self.points:
+            i = int(point.measurement_I.y * (rows - 1) / height_I)
+            j = int(point.measurement_I.x * (cols - 1) / width_I)
+            print('floatcols', point.measurement_I.x * (cols - 1) / width_I)
+            print('floatrows', point.measurement_I.y * (rows - 1) / height_I)
+
+            print(i, j)
+            print('rows', len(errorRaster))
+            print('cols', len(errorRaster[i]))
+            print(len(errorRaster[i][j]))
+            errorRaster[i][j] += point.error_I
+            #errorRaster[i][j][1] += 1
+        return errorRaster
 
 
 class MyPoint():
