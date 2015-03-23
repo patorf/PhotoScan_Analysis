@@ -143,7 +143,7 @@ class MyPhoto(object):
 
             point_pos = shapeBuilder.createCircle(point_x, point_y, radius, circle_stroke)  # ,fill='rgba(0,0,0,1)')
             imageGroup.addElement(point_pos)
-            imageGroup.addElement(self.drawErrorVector(20, point, transform2SVG))
+            imageGroup.addElement(self.drawErrorVector(40, point, transform2SVG))
 
         # Image Group Translation
         transImage = TransformBuilder()
@@ -172,7 +172,7 @@ class MyPhoto(object):
 
         return errorLine
 
-    def getErrorRaster(self, cols=22):
+    def getRaster(self, cols=22):
 
         width_I = self.photoscanCamera.sensor.width
         height_I = self.photoscanCamera.sensor.height
@@ -182,21 +182,48 @@ class MyPhoto(object):
         # cols += 1 #fall nicht kann das array zu kurz sein falls ein punkt genau am bildrand liegt
         #errorRaster=[]
         #for row in range(rows): errorRaster += [[PhotoScan.Vector((0,0))]*cols]
-        errorRaster = [[PhotoScan.Vector((0, 0)) for x in range(cols)] for x in range(rows)]
+        errorRaster = [[[] for x in range(cols)] for x in range(rows)]
 
         for point in self.points:
             i = int(point.measurement_I.y * (rows - 1) / height_I)
             j = int(point.measurement_I.x * (cols - 1) / width_I)
-            print('floatcols', point.measurement_I.x * (cols - 1) / width_I)
-            print('floatrows', point.measurement_I.y * (rows - 1) / height_I)
+            # print('floatcols', point.measurement_I.x * (cols - 1) / width_I)
+            # print('floatrows', point.measurement_I.y * (rows - 1) / height_I)
 
-            print(i, j)
-            print('rows', len(errorRaster))
-            print('cols', len(errorRaster[i]))
-            print(len(errorRaster[i][j]))
-            errorRaster[i][j] += point.error_I
+            # print('rows', len(errorRaster))
+            #print('cols', len(errorRaster[i]))
+            #print(len(errorRaster[i][j]))
+            #errorRaster[i][j] += point.error_I
+            errorRaster[i][j].append(point)
             #errorRaster[i][j][1] += 1
         return errorRaster
+
+    def getErrorRaster(self, cols=22):
+        errorRaster = self.getRaster(cols)
+
+        for i, col in enumerate(errorRaster):
+            for j, row in enumerate(col):
+                errorVector = PhotoScan.Vector((0, 0))
+                for point in row:
+                    errorVector += point.error_I
+                errorRaster[i][j] = errorVector
+
+        return errorRaster
+
+    def getCountRaster(self, cols=22):
+        coutnRaster = self.getRaster(cols)
+        min_max_list = []
+        for i, col in enumerate(coutnRaster):
+            for j, row in enumerate(col):
+                coutnRaster[i][j] = len(row)
+                min_max_list.append(len(row))
+
+        return coutnRaster, min(min_max_list), max(min_max_list)
+
+
+
+
+
 
 
 class MyPoint():
