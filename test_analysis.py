@@ -93,7 +93,7 @@ class TestMyPhoto(unittest.TestCase):
         #print(photo.getPhotsSVG()[0].getXML())
 
 
-    def test_getErrorMatrix(self):
+    def getPhotoforRasterTest(self):
         photo = MyPhoto()
         photo.addPoint(p1)
         photo.addPoint(p2)
@@ -117,9 +117,12 @@ class TestMyPhoto(unittest.TestCase):
         cam_dummy = psCamera()
 
         photo.photoscanCamera = cam_dummy
+        return photo
+
+    def test_getErrorRaster(self):
+        photo = self.getPhotoforRasterTest()
         errorRaster = photo.getErrorRaster(cols=5)
-        print(len(errorRaster))
-        print(len(errorRaster[0]))
+
         # upper left
         self.assertTrue(errorRaster[0][0].x == -1.0)
         self.assertTrue(errorRaster[0][0].y == -1.0)
@@ -136,8 +139,18 @@ class TestMyPhoto(unittest.TestCase):
         self.assertTrue(errorRaster[4][4].x == 1.0)
         self.assertTrue(errorRaster[4][4].y == 1.0)
 
+    def test_getCountRaster(self):
+        photo = self.getPhotoforRasterTest()
 
+        countRaster, min, max = photo.getCountRaster(cols=5)
+        self.assertEqual(countRaster[0][0], 1)
+        self.assertEqual(countRaster[0][4], 1)
+        self.assertEqual(countRaster[4][0], 1)
+        self.assertEqual(countRaster[4][4], 1)
+        self.assertEqual(countRaster[1][1], 0)
 
+        self.assertEqual(min, 0)
+        self.assertEqual(max, 2)
 
 
 class TestMyPoint(unittest.TestCase):
