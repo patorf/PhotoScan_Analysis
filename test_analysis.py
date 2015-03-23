@@ -139,6 +139,10 @@ class TestMyPhoto(unittest.TestCase):
         self.assertTrue(errorRaster[4][4].x == 1.0)
         self.assertTrue(errorRaster[4][4].y == 1.0)
 
+        self.assertTrue(errorRaster[2][2].x == 0)
+        self.assertTrue(errorRaster[2][2].y == 0)
+
+
     def test_getCountRaster(self):
         photo = self.getPhotoforRasterTest()
 

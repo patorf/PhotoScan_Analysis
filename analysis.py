@@ -206,7 +206,10 @@ class MyPhoto(object):
                 errorVector = PhotoScan.Vector((0, 0))
                 for point in row:
                     errorVector += point.error_I
-                errorRaster[i][j] = errorVector
+                if (len(row)):
+                    errorRaster[i][j] = errorVector / len(row)
+                else:
+                    errorRaster[i][j] = errorVector
 
         return errorRaster
 
