@@ -23,14 +23,14 @@ class MyPhoto(object):
         self.points = []
         self.photoscanCamera = None
 
-    def addPoint(self, newPoint=None):
+    def add_point(self, new_point=None):
         """
 
         :rtype : MyPoint
         """
-        if newPoint == None:
-            newPoint = MyPoint()
-        self.points.append(newPoint)
+        if new_point is None:
+            new_point = MyPoint()
+        self.points.append(new_point)
         return self.points[-1]
 
     def calc_sigma(self):
@@ -39,44 +39,44 @@ class MyPhoto(object):
         error_quad_sum = None
         count = 0
         error_quad_sum = PhotoScan.Vector([0, 0])
-        errorMatrix = self.getErrorMatrix()
+        error_matrix = self.getErrorMatrix()
 
         # error_quad_sum.x += point.error_I.x ** 2
-        #    error_quad_sum.y += point.error_I.y ** 2
+        # error_quad_sum.y += point.error_I.y ** 2
 
         # count += 1
 
         # sigma_x = math.sqrt(error_quad_sum.x / count)
-        #sigma_y = math.sqrt(error_quad_sum.y / count)
+        # sigma_y = math.sqrt(error_quad_sum.y / count)
 
-        cov = calc_Cov_from_ErrorMatrix(errorMatrix)
+        cov = calc_Cov_from_ErrorMatrix(error_matrix)
         sigma_x = math.sqrt(cov[0, 0])
         sigma_y = math.sqrt(cov[1, 1])
-        #return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
-        return (PhotoScan.Vector([sigma_x, sigma_y]))
+        # return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
+        return PhotoScan.Vector([sigma_x, sigma_y])
 
-    def getMax(self):
-        errorMatrix = self.getErrorMatrix()
+    def get_max(self):
+        error_matrix = self.getErrorMatrix()
 
-        maxError = PhotoScan.Vector((0, 0))
+        max_error = PhotoScan.Vector((0, 0))
 
-        maxError.x = max(abs(l[0]) for l in errorMatrix)
-        maxError.y = max(abs(l[1]) for l in errorMatrix)
+        max_error.x = max(abs(l[0]) for l in error_matrix)
+        max_error.y = max(abs(l[1]) for l in error_matrix)
 
-        return maxError
+        return max_error
 
     def getErrorMatrix(self):
-        errorMatrix = []
+        error_matrix = []
         for point in self.points:
-            errorMatrix.append([point.error_I.x, point.error_I.y])
-        return errorMatrix
+            error_matrix.append([point.error_I.x, point.error_I.y])
+        return error_matrix
 
 
     @classmethod
-    def printReportHeader(cls):
+    def print_report_header(cls):
 
 
-        str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n'.format('Cam #',
+        r_str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n'.format('Cam #',
                                                                              'Projections',
                                                                              'SIG x',
                                                                              'SIG y',
@@ -85,25 +85,25 @@ class MyPhoto(object):
                                                                              'MAX y'
                                                                              )
 
-        return str
+        return r_str
 
-    def printReportLine(self):
+    def print_report_line(self):
 
-        str = ''
+        r_str = ''
         sigma = self.calc_sigma()
-        maxError = self.getMax()
-        str += '{:>12s}{:14d}{:9.5f}{:9.5f}{:9.5f}{:9.5f}{:9.5f}\n'.format(self.label,
-                                                                         len(self.points),
-                                                                         sigma.x,
-                                                                         sigma.y,
-                                                                         sigma.norm(),
-                                                                         maxError.x,
-                                                                         maxError.y)
+        max_error = self.get_max()
+        r_str += '{:>12s}{:14d}{:9.5f}{:9.5f}{:9.5f}{:9.5f}{:9.5f}\n'.format(self.label,
+                                                                             len(self.points),
+                                                                             sigma.x,
+                                                                             sigma.y,
+                                                                             sigma.norm(),
+                                                                             max_error.x,
+                                                                             max_error.y)
 
-        return str
+        return r_str
 
 
-    def getPhotsSVG(self):
+    def get_photos_SVG(self):
         # SVG Attributes
         width_svg = 700
         labelpos = (10, 16)
@@ -111,11 +111,11 @@ class MyPhoto(object):
         radius = 2
         circle_stroke = 1
 
-        shapeBuilder = ShapeBuilder()
+        shape_builder = ShapeBuilder()
 
         group = g()
 
-        label = text(self.printReportLine(), *labelpos)
+        label = text(self.print_report_line(), *labelpos)
         textStyle = StyleBuilder()
         textStyle.setFontSize('16')
         label.set_style(textStyle.getStyle())
@@ -127,23 +127,23 @@ class MyPhoto(object):
         image_ratio = width_I / height_I
         height_svg = width_svg / image_ratio
 
-        def transform2SVG(x_image, y_image):
+        def transform_2_SVG(x_image, y_image):
             x_svg = x_image * width_svg / width_I
             y_svg = y_image * height_svg / height_I
 
-            return (int(x_svg), int(y_svg))
+            return int(x_svg), int(y_svg)
 
         imageGroup = g()
 
-        imageFrame = shapeBuilder.createRect(0, 0, width_svg, height_svg, 0, 0, strokewidth=1, stroke='navy')
-        imageGroup.addElement(imageFrame)
+        image_frame = shape_builder.createRect(0, 0, width_svg, height_svg, 0, 0, strokewidth=1, stroke='navy')
+        imageGroup.addElement(image_frame)
         for point in self.points:
-            point_x, point_y = transform2SVG(point.measurement_I.x,
+            point_x, point_y = transform_2_SVG(point.measurement_I.x,
                                              point.measurement_I.y)
 
-            point_pos = shapeBuilder.createCircle(point_x, point_y, radius, circle_stroke)  # ,fill='rgba(0,0,0,1)')
+            point_pos = shape_builder.createCircle(point_x, point_y, radius, circle_stroke)  # ,fill='rgba(0,0,0,1)')
             imageGroup.addElement(point_pos)
-            imageGroup.addElement(self.drawErrorVector(40, point, transform2SVG))
+            imageGroup.addElement(self.drawErrorVector(40, point, transform_2_SVG))
 
         # Image Group Translation
         transImage = TransformBuilder()
@@ -152,10 +152,11 @@ class MyPhoto(object):
 
         group.addElement(imageGroup)
 
-        totalHeight = imagepos[1] + height_svg
-        return group, totalHeight
+        total_height = imagepos[1] + height_svg
+        return group, total_height
 
-    def drawErrorVector(self, factor, point, transformatioin):
+    @classmethod
+    def drawErrorVector(cls, factor, point, transformatioin):
         """
         :type factor: int
         :type point: MyPoint
@@ -168,9 +169,9 @@ class MyPhoto(object):
         x1, y1 = transformatioin(endpoint.x, endpoint.y)
 
         sha = ShapeBuilder()
-        errorLine = sha.createLine(x0, y0, x1, y1, 1)
+        error_line = sha.createLine(x0, y0, x1, y1, 1)
 
-        return errorLine
+        return error_line
 
     def getRaster(self, cols=22):
 
@@ -180,9 +181,9 @@ class MyPhoto(object):
         size = width_I / cols
         rows = int(height_I / size + 0.5)
         # cols += 1 #fall nicht kann das array zu kurz sein falls ein punkt genau am bildrand liegt
-        #errorRaster=[]
-        #for row in range(rows): errorRaster += [[PhotoScan.Vector((0,0))]*cols]
-        errorRaster = [[[] for x in range(cols)] for x in range(rows)]
+        # errorRaster=[]
+        # for row in range(rows): errorRaster += [[PhotoScan.Vector((0,0))]*cols]
+        error_raster = [[[] for x in range(cols)] for x in range(rows)]
 
         for point in self.points:
             i = int(point.measurement_I.y * (rows - 1) / height_I)
@@ -191,42 +192,37 @@ class MyPhoto(object):
             # print('floatrows', point.measurement_I.y * (rows - 1) / height_I)
 
             # print('rows', len(errorRaster))
-            #print('cols', len(errorRaster[i]))
-            #print(len(errorRaster[i][j]))
-            #errorRaster[i][j] += point.error_I
-            errorRaster[i][j].append(point)
-            #errorRaster[i][j][1] += 1
-        return errorRaster
+            # print('cols', len(errorRaster[i]))
+            # print(len(errorRaster[i][j]))
+            # errorRaster[i][j] += point.error_I
+            error_raster[i][j].append(point)
+            # errorRaster[i][j][1] += 1
+        return error_raster
 
-    def getErrorRaster(self, cols=22):
-        errorRaster = self.getRaster(cols)
+    def get_error_raster(self, cols=22):
+        error_raster = self.getRaster(cols)
 
-        for i, col in enumerate(errorRaster):
+        for i, col in enumerate(error_raster):
             for j, row in enumerate(col):
                 errorVector = PhotoScan.Vector((0, 0))
                 for point in row:
                     errorVector += point.error_I
-                if (len(row)):
-                    errorRaster[i][j] = errorVector / len(row)
+                if len(row):
+                    error_raster[i][j] = errorVector / len(row)
                 else:
-                    errorRaster[i][j] = errorVector
+                    error_raster[i][j] = errorVector
 
-        return errorRaster
+        return error_raster
 
-    def getCountRaster(self, cols=22):
-        coutnRaster = self.getRaster(cols)
+    def get_count_raster(self, cols=22):
+        coutn_raster = self.getRaster(cols)
         min_max_list = []
-        for i, col in enumerate(coutnRaster):
+        for i, col in enumerate(coutn_raster):
             for j, row in enumerate(col):
-                coutnRaster[i][j] = len(row)
+                coutn_raster[i][j] = len(row)
                 min_max_list.append(len(row))
 
-        return coutnRaster, min(min_max_list), max(min_max_list)
-
-
-
-
-
+        return coutn_raster, min(min_max_list), max(min_max_list)
 
 
 class MyPoint():
@@ -246,14 +242,14 @@ class MyPoint():
         self.sigma_I = None
 
 
-    def projectSigma_2_W(self, sigma_I=None):
+    def project_sigma_2_W(self, sigma_I=None):
         if not sigma_I:
             sigma_I = self.sigma_I
         # sigma_W is equal to the length of the error_W vector
         sigma_W = self.ratio_W_2_I * sigma_I
 
-        trimFaktor = sigma_W / self.error_W.norm()
-        return self.error_W * trimFaktor
+        trim_faktor = sigma_W / self.error_W.norm()
+        return self.error_W * trim_faktor
 
 
     @property
@@ -273,27 +269,25 @@ class MyGlobalPoint():
 
         # def calcCov_W_from_Std(self):
         # if len(self.points) <= 2:
-        #         return None
+        # return None
         #
-        #     X_list = []
-        #     summe1 = 0
-        #     summe2 = 0
+        # X_list = []
+        # summe1 = 0
+        # summe2 = 0
         #
-        #     for point in self.points:
-        #         assert isinstance(point, MyPoint)
-        #         std_error_W = point.projectSigma_2_W()
+        # for point in self.points:
+        # assert isinstance(point, MyPoint)
+        # std_error_W = point.projectSigma_2_W()
         #
-        #         X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
+        # X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
         #
-        #     print('x_list', X_list)
-        #     X_matrix = PhotoScan.Matrix(X_list)
+        # print('x_list', X_list)
+        # X_matrix = PhotoScan.Matrix(X_list)
         #
-        #     C = X_matrix.t() * X_matrix
-        #     C = C * (1 / (len(self.points) - 1))
+        # C = X_matrix.t() * X_matrix
+        # C = C * (1 / (len(self.points) - 1))
         #
-        #     self.cov_W = C
-
-
+        # self.cov_W = C
 
 
 class MyProject():
@@ -306,25 +300,22 @@ class MyProject():
         self.directory = "\\".join(self.path.split('\\')[:-1])
 
 
+    def build_global_point_error(self):
 
-
-
-    def buildGlobalPointError(self):
-
-        maxP = PhotoScan.Vector([0, 0, 0])
-        minP = PhotoScan.Vector([0, 0, 0])
+        max_P = PhotoScan.Vector([0, 0, 0])
+        min_P = PhotoScan.Vector([0, 0, 0])
         for photo in self.photos:
             sigma_photo = photo.calc_sigma()
             assert isinstance(photo, MyPhoto)
             for point in photo.points:
                 assert isinstance(point, MyPoint)
-                maxP.x = max(maxP.x, point.coord_W.x)
-                maxP.y = max(maxP.y, point.coord_W.y)
-                maxP.z = max(maxP.z, point.coord_W.z)
+                max_P.x = max(max_P.x, point.coord_W.x)
+                max_P.y = max(max_P.y, point.coord_W.y)
+                max_P.z = max(max_P.z, point.coord_W.z)
 
-                minP.x = min(minP.x, point.coord_W.x)
-                minP.y = min(minP.y, point.coord_W.y)
-                minP.z = min(minP.z, point.coord_W.z)
+                min_P.x = min(min_P.x, point.coord_W.x)
+                min_P.y = min(min_P.y, point.coord_W.y)
+                min_P.z = min(min_P.z, point.coord_W.z)
 
                 point.sigma_I = sigma_photo
 
@@ -334,20 +325,19 @@ class MyProject():
     def calc_cov_for_all_points(self):
         pass
         # for trackid, point in self.points.items():
-        #    point.calcCov_W_from_Std()
+        # point.calcCov_W_from_Std()
 
         # for point in list(self.points.values())[99].points:
-        #pass
+        # pass
 
     # not needet by this point
-    def getRMS_4_all_Photos(self, photos=None):
+    def get_RMS_4_all_photos(self, photos=None):
         if not photos:
             photos = self.photos
 
         var_x_sum = 0
         var_y_sum = 0
         for photo in photos:
-
             sigma_photo = photo.calc_sigma()
             var_x_sum += sigma_photo.x ** 2
             var_y_sum += sigma_photo.y ** 2
@@ -356,7 +346,6 @@ class MyProject():
         rms_y = math.sqrt(var_y_sum / len(photos))
 
         return rms_x, rms_y
-
 
 
     def calc_reprojection(self, chunk):
@@ -376,9 +365,9 @@ class MyProject():
             if not camera.transform:
                 continue
 
-            thisPhoto = MyPhoto(camera.label)
-            thisPhoto.photoscanCamera = camera
-            allPhotos.append(thisPhoto)
+            this_photo = MyPhoto(camera.label)
+            this_photo.photoscanCamera = camera
+            allPhotos.append(this_photo)
 
             T = camera.transform.inv()
             calib = camera.sensor.calibration
@@ -413,7 +402,7 @@ class MyProject():
 
                     # save Point in curren Photo
                     if point_I:
-                        point = thisPhoto.addPoint()
+                        point = this_photo.add_point()
 
                         point.track_id = track_id
                         point.projection_I = point_I
@@ -424,8 +413,8 @@ class MyProject():
                         # print('ratio',point.ratio_W_2_I)
                         # print('disttocenter',point_C.norm())
                         # print('error_W', point.error_W)
-                        #  print('error_I', point.error_I)
-                        #  print('--------------W', point.coord_C)
+                        # print('error_I', point.error_I)
+                        # print('--------------W', point.coord_C)
                     # [-0.25211071968078613, -0.04763663187623024, 5.12844181060791])
                     dist = error_I.norm() ** 2
                     err_sum += dist
@@ -441,27 +430,25 @@ class MyProject():
 
         rep_avg = sigma
 
-        return (rep_avg, photo_avg, allPhotos)
+        return rep_avg, photo_avg, allPhotos
 
-    def printReport(self):
+    def print_report(self):
         filename = 'report.txt'
 
-        str = ""
-        str += MyPhoto.printReportHeader()
+        r_str = ""
+        r_str += MyPhoto.print_report_header()
         for phots in self.photos:
             assert isinstance(phots, MyPhoto)
-            str += phots.printReportLine()
+            r_str += phots.print_report_line()
 
-        str += '\n'
-        rms_x, rms_y = self.getRMS_4_all_Photos()
-        str += '{:>26s}{:9.5f}{:9.5f}'.format('RMS:', rms_x, rms_y)
+        r_str += '\n'
+        rms_x, rms_y = self.get_RMS_4_all_photos()
+        r_str += '{:>26s}{:9.5f}{:9.5f}'.format('RMS:', rms_x, rms_y)
 
-
-
-        print(str)
+        print(r_str)
 
         f = open(self.directory + '\\' + filename, 'w')
-        f.write(str)
+        f.write(r_str)
         f.close()
         print('save file ', filename, ' to: ', self.directory)
 
@@ -471,47 +458,43 @@ class MyProject():
 
         s = svg()
         i = 0
-        totolHeight = 0
+        totol_height = 0
         for photo in self.photos:
-            photoSVG_group, groupHeight = photo.getPhotsSVG()
+            photoSVG_group, group_height = photo.get_photos_SVG()
 
-            photoSVG_group_copy = copy.deepcopy(photoSVG_group)
-            assert isinstance(photoSVG_group_copy, g)
+            photo_SVG_group_copy = copy.deepcopy(photoSVG_group)
+            assert isinstance(photo_SVG_group_copy, g)
 
             if i == 0:
                 # the First Image show all features
                 i = 1
-                textelement = photoSVG_group_copy.getElementAt(0)
+                textelement = photo_SVG_group_copy.getElementAt(0)
                 assert isinstance(textelement, text)
                 textelement._subElements[0].content = "All Photos"
             else:
                 # avoid label overlay
-                del (photoSVG_group_copy._subElements[0])
+                del (photo_SVG_group_copy._subElements[0])
 
-            s.addElement(photoSVG_group_copy)
+            s.addElement(photo_SVG_group_copy)
 
 
             # Group Transformation
             trans = TransformBuilder()
-            trans.setTranslation(0, groupHeight * i)
+            trans.setTranslation(0, group_height * i)
             photoSVG_group.set_transform(trans.getTransform())
 
             s.addElement(photoSVG_group)
-            totolHeight += groupHeight
+            totol_height += group_height
             i += 1
 
-        s.set_height(totolHeight)
+        s.set_height(totol_height)
 
         s.save(self.directory + '\\' + filename)
         print('save file ', filename, ' to: ', self.directory)
 
 
-
-
-
-
 def trans_error_image_2_camera(camera, point_pix, point_Camera):
-    T = camera.transform
+    t = camera.transform
     calib = camera.sensor.calibration
     fx = calib.fx
     fy = calib.fy
@@ -527,23 +510,23 @@ def trans_error_image_2_camera(camera, point_pix, point_Camera):
     return point_C, center_C
 
 
-def calc_Cov_from_ErrorMatrix(errorMatrix):
+def calc_Cov_from_ErrorMatrix(error_matrix):
     # X_list = []
-    #for error in pointError:
-    #    X_list.append([error.x, error.y, error.z])
+    # for error in pointError:
+    # X_list.append([error.x, error.y, error.z])
 
-    X_matrix = PhotoScan.Matrix(errorMatrix)
+    X_matrix = PhotoScan.Matrix(error_matrix)
 
     C = X_matrix.t() * X_matrix
-    C = C * (1 / (len(errorMatrix) ))
+    C = C * (1 / (len(error_matrix) ))
 
     return C
 
 
-def calc_Cov_4_allPoints(pointList):
+def calc_Cov_4_allPoints(point_list):
     covs = {}  # Key = trackid ; value = 3x3 Matrix
 
-    for track_id, error in pointList.items():
+    for track_id, error in point_list.items():
         if len(error) > 3:
             cov = calc_Cov_4_Point(error)
             covs[track_id] = cov
@@ -553,26 +536,26 @@ def calc_Cov_4_allPoints(pointList):
     return covs
 
 
-def creatExportList(points, covs_Dict):
-    exportPoints = []
+def creatExportList(points, covs_dict):
+    export_points = []
     for point in points:
-        if covs_Dict.get(point.track_id):
-            exportPoints.append(
-                [point.track_id, point.coord, covs_Dict[point.track_id]])
-    return exportPoints
+        if covs_dict.get(point.track_id):
+            export_points.append(
+                [point.track_id, point.coord, covs_dict[point.track_id]])
+    return export_points
 
 
-def export_No_xyz_cov(points, covs_Dict):
-    exportPoints = creatExportList(points, covs_Dict)
+def export_no_xyz_cov(points, covs_Dict):
+    export_points = creatExportList(points, covs_Dict)
 
-    doc.path  # C:\User....\project.psz
+    # doc.path  # C:\User....\project.psz
 
     f = open(
         'C:\\Users\\philipp.atorf.INTERN\\Downloads\\building\\export.txt', 'w')
 
-    print('output start for %i points' % len(exportPoints))
+    print('output start for %i points' % len(export_points))
 
-    for point in exportPoints:
+    for point in export_points:
         output = ''
         output += '%i;' % point[0]
         output += '%15.12e;%15.12e;%15.12e\n' % (
@@ -584,7 +567,7 @@ def export_No_xyz_cov(points, covs_Dict):
         output += '%15.12e;%15.12e;%15.12e' % (
             point[2].row(2).x, point[2].row(2).y, point[2].row(2).z)
 
-        if point != exportPoints[-1]:
+        if point != export_points[-1]:
             output += '\n'
         f.write(output)
 
@@ -592,14 +575,14 @@ def export_No_xyz_cov(points, covs_Dict):
     print('output finish')
 
 
-def export_No_xyz_std(points, covs_Dict):
-    exportPoints = creatExportList(points, covs_Dict)
+def export_no_xyz_std(points, covs_Dict):
+    export_points = creatExportList(points, covs_Dict)
     f = open(
         'C:\\Users\\philipp.atorf.INTERN\\Downloads\\building\\export_xyz.txt', 'w')
 
-    print('output xyz sx sy sz start for %i points' % len(exportPoints))
+    print('output xyz sx sy sz start for %i points' % len(export_points))
 
-    for point in exportPoints:
+    for point in export_points:
         output = ''
         output += '%i;' % point[0]
         output += '%15.12e;%15.12e;%15.12e;%15.12e' % (
@@ -608,14 +591,12 @@ def export_No_xyz_std(points, covs_Dict):
             point[1].z,
             sqrt(point[2].row(0).x + point[2].row(1).y + point[2].row(2).z))
 
-        if point != exportPoints[-1]:
+        if point != export_points[-1]:
             output += '\n'
         f.write(output)
 
     f.close()
     print('output finish')
-
-
 
 
 if __name__ == '__main__':
@@ -634,9 +615,9 @@ if __name__ == '__main__':
 
     project = MyProject()
     total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
-    project.buildGlobalPointError()
+    project.build_global_point_error()
     project.calc_cov_for_all_points()
-    project.printReport()
+    project.print_report()
 
     project.createProjectSVG()
     # print(total_error)
@@ -644,9 +625,9 @@ if __name__ == '__main__':
     # print(vars(allPhotos[0].points[1]))
 
 
-    #covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
+    # covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
 
-    #point_cloud = chunk.point_cloud
-    #points = point_cloud.points
+    # point_cloud = chunk.point_cloud
+    # points = point_cloud.points
 
-    #export_No_xyz_cov(points, covs_Dict)
+    # export_No_xyz_cov(points, covs_Dict)

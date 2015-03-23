@@ -42,12 +42,12 @@ class TestMyPhoto(unittest.TestCase):
 
     def test_addPoint(self):
         photo= MyPhoto()
-        photo.addPoint(p1)
+        photo.add_point(p1)
 
         self.assertEqual(photo.points[-1], p1)
         self.assertIs(len(photo.points),1)
 
-        photo.addPoint()
+        photo.add_point()
         self.assertIsInstance(photo.points[-1], MyPoint)
 
 
@@ -61,23 +61,23 @@ class TestMyPhoto(unittest.TestCase):
         #self.assertAlmostEqual(error_quad.y, 0.006715587, 6)
 
     def test_gestExtremError(self):
-        maxError = self.photo.getMax()
+        maxError = self.photo.get_max()
         self.assertAlmostEqual(maxError.x, 0.5565147, 5)
         self.assertAlmostEqual(maxError.y, 0.0790828, 5)
 
     def test_createSVG(self):
         photo = MyPhoto()
-        photo.addPoint(p1)
-        photo.addPoint(p2)
+        photo.add_point(p1)
+        photo.add_point(p2)
         photo.label = "test_Label"
         p_bottom_left = PhotoScan.Vector((0, 2000))
         p_bottom_right = PhotoScan.Vector((2000, 2000))
         p_upper_left = PhotoScan.Vector((0, 0))
         p_upper_right = PhotoScan.Vector((2000, 0))
-        photo.addPoint(MyPoint(measurement_I=p_bottom_left, projection_I=p_bottom_left))
-        photo.addPoint(MyPoint(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 0))))
-        photo.addPoint(MyPoint(measurement_I=p_upper_left, projection_I=p_upper_left))
-        photo.addPoint(MyPoint(measurement_I=p_upper_right, projection_I=p_upper_right))
+        photo.add_point(MyPoint(measurement_I=p_bottom_left, projection_I=p_bottom_left))
+        photo.add_point(MyPoint(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 0))))
+        photo.add_point(MyPoint(measurement_I=p_upper_left, projection_I=p_upper_left))
+        photo.add_point(MyPoint(measurement_I=p_upper_right, projection_I=p_upper_right))
 
         class psSensor():
             height = 2000
@@ -95,17 +95,17 @@ class TestMyPhoto(unittest.TestCase):
 
     def getPhotoforRasterTest(self):
         photo = MyPhoto()
-        photo.addPoint(p1)
-        photo.addPoint(p2)
+        photo.add_point(p1)
+        photo.add_point(p2)
         photo.label = "test_Label"
         p_bottom_left = PhotoScan.Vector((0, 2000))
         p_bottom_right = PhotoScan.Vector((2000, 2000))
         p_upper_left = PhotoScan.Vector((0, 0))
         p_upper_right = PhotoScan.Vector((2000, 0))
-        photo.addPoint(MyPoint(measurement_I=p_bottom_left, projection_I=PhotoScan.Vector((-1, 2001))))
-        photo.addPoint(MyPoint(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 2001))))
-        photo.addPoint(MyPoint(measurement_I=p_upper_left, projection_I=PhotoScan.Vector((-1, -1))))
-        photo.addPoint(MyPoint(measurement_I=p_upper_right, projection_I=PhotoScan.Vector((2001, -1))))
+        photo.add_point(MyPoint(measurement_I=p_bottom_left, projection_I=PhotoScan.Vector((-1, 2001))))
+        photo.add_point(MyPoint(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 2001))))
+        photo.add_point(MyPoint(measurement_I=p_upper_left, projection_I=PhotoScan.Vector((-1, -1))))
+        photo.add_point(MyPoint(measurement_I=p_upper_right, projection_I=PhotoScan.Vector((2001, -1))))
 
         class psSensor():
             height = 2000
@@ -121,7 +121,7 @@ class TestMyPhoto(unittest.TestCase):
 
     def test_getErrorRaster(self):
         photo = self.getPhotoforRasterTest()
-        errorRaster = photo.getErrorRaster(cols=5)
+        errorRaster = photo.get_error_raster(cols=5)
 
         # upper left
         self.assertTrue(errorRaster[0][0].x == -1.0)
@@ -146,7 +146,7 @@ class TestMyPhoto(unittest.TestCase):
     def test_getCountRaster(self):
         photo = self.getPhotoforRasterTest()
 
-        countRaster, min, max = photo.getCountRaster(cols=5)
+        countRaster, min, max = photo.get_count_raster(cols=5)
         self.assertEqual(countRaster[0][0], 1)
         self.assertEqual(countRaster[0][4], 1)
         self.assertEqual(countRaster[4][0], 1)
@@ -160,13 +160,13 @@ class TestMyPhoto(unittest.TestCase):
 class TestMyPoint(unittest.TestCase):
     def test_projectSigma_2_W(self):
         sigma_I = 0.400212071  # (sigma from p1 and p2)
-        std_error_W = p1.projectSigma_2_W(sigma_I)
+        std_error_W = p1.project_sigma_2_W(sigma_I)
         self.assertAlmostEqual(std_error_W.x, -0.0005680685, 6)
         self.assertAlmostEqual(std_error_W.y, 0.0001009828, 6)
         self.assertAlmostEqual(std_error_W.z, 0.0003257899, 6)
 
         p1.sigma_I = 0.400212071
-        std_error_W = p1.projectSigma_2_W()
+        std_error_W = p1.project_sigma_2_W()
         self.assertAlmostEqual(std_error_W.x, -0.0005680685, 6)
         self.assertAlmostEqual(std_error_W.y, 0.0001009828, 6)
         self.assertAlmostEqual(std_error_W.z, 0.0003257899, 6)
@@ -189,7 +189,7 @@ class TestMyProject(unittest.TestCase):
     project = MyProject()
     project.photos = [pho1, pho2]
     def test_calcGlobalSigma(self):
-        rms_x, rms_y = self.project.getRMS_4_all_Photos()
+        rms_x, rms_y = self.project.get_RMS_4_all_photos()
         self.assertAlmostEqual(rms_x, 3.807886553, 6)
         self.assertAlmostEqual(rms_y, 12.04159458, 6)
 
