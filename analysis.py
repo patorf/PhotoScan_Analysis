@@ -16,7 +16,7 @@ imp.reload(pysvg)
 from pysvg.builders import *
 
 
-class MyPhoto(object):
+class I3_Photo(object):
     def __init__(self, label=None):
 
         self.label = label
@@ -26,10 +26,10 @@ class MyPhoto(object):
     def add_point(self, new_point=None):
         """
 
-        :rtype : MyPoint
+        :rtype : I3_Point
         """
         if new_point is None:
-            new_point = MyPoint()
+            new_point = I3_Point()
         self.points.append(new_point)
         return self.points[-1]
 
@@ -39,7 +39,7 @@ class MyPhoto(object):
         error_quad_sum = None
         count = 0
         error_quad_sum = PhotoScan.Vector([0, 0])
-        error_matrix = self.getErrorMatrix()
+        error_matrix = self.get_error_matrix()
 
         # error_quad_sum.x += point.error_I.x ** 2
         # error_quad_sum.y += point.error_I.y ** 2
@@ -56,7 +56,7 @@ class MyPhoto(object):
         return PhotoScan.Vector([sigma_x, sigma_y])
 
     def get_max(self):
-        error_matrix = self.getErrorMatrix()
+        error_matrix = self.get_error_matrix()
 
         max_error = PhotoScan.Vector((0, 0))
 
@@ -65,7 +65,7 @@ class MyPhoto(object):
 
         return max_error
 
-    def getErrorMatrix(self):
+    def get_error_matrix(self):
         error_matrix = []
         for point in self.points:
             error_matrix.append([point.error_I.x, point.error_I.y])
@@ -159,7 +159,7 @@ class MyPhoto(object):
     def drawErrorVector(cls, factor, point, transformatioin):
         """
         :type factor: int
-        :type point: MyPoint
+        :type point: I3_Point
         :type transformatioin: (float,float)->(int,int)
         """
 
@@ -197,35 +197,34 @@ class MyPhoto(object):
             # errorRaster[i][j] += point.error_I
             error_raster[i][j].append(point)
             # errorRaster[i][j][1] += 1
-        return error_raster
+        return error_raster, size
 
     def get_error_raster(self, cols=22):
-        error_raster = self.getRaster(cols)
+        error_raster, size = self.getRaster(cols)
 
         for i, col in enumerate(error_raster):
             for j, row in enumerate(col):
                 errorVector = PhotoScan.Vector((0, 0))
                 for point in row:
                     errorVector += point.error_I
-                if len(row):
+                if len(row):  # if empty  avoid div by 0
                     error_raster[i][j] = errorVector / len(row)
                 else:
                     error_raster[i][j] = errorVector
-
-        return error_raster
+        return error_raster, size
 
     def get_count_raster(self, cols=22):
-        coutn_raster = self.getRaster(cols)
+        coutn_raster, size = self.getRaster(cols)
         min_max_list = []
         for i, col in enumerate(coutn_raster):
             for j, row in enumerate(col):
                 coutn_raster[i][j] = len(row)
                 min_max_list.append(len(row))
 
-        return coutn_raster, min(min_max_list), max(min_max_list)
+        return coutn_raster, size, min(min_max_list), max(min_max_list)
 
 
-class MyPoint():
+class I3_Point():
     def __init__(self, projection_I=None,
                  measurement_I=None,
                  track_id=None,
@@ -254,6 +253,7 @@ class MyPoint():
 
     @property
     def error_I(self):
+
         return self.projection_I - self.measurement_I
 
     @property
@@ -261,7 +261,7 @@ class MyPoint():
         return self.error_W.norm() / self.error_I.norm()
 
 
-class MyGlobalPoint():
+class I3_GlobalPoint():
     def __init__(self):
         self.points = []
         self.cov_W = None
@@ -276,7 +276,7 @@ class MyGlobalPoint():
         # summe2 = 0
         #
         # for point in self.points:
-        # assert isinstance(point, MyPoint)
+        # assert isinstance(point, I3_Point)
         # std_error_W = point.projectSigma_2_W()
         #
         # X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
@@ -290,12 +290,12 @@ class MyGlobalPoint():
         # self.cov_W = C
 
 
-class MyProject():
+class I3_Project():
     def __init__(self):
         self.photos = []
-        """:type: list[MyPhoto]"""
+        """:type: list[I3_Photo]"""
 
-        self.points = defaultdict(MyGlobalPoint)
+        self.points = defaultdict(I3_GlobalPoint)
         self.path = PhotoScan.app.document.path
         self.directory = "\\".join(self.path.split('\\')[:-1])
 
@@ -306,9 +306,9 @@ class MyProject():
         min_P = PhotoScan.Vector([0, 0, 0])
         for photo in self.photos:
             sigma_photo = photo.calc_sigma()
-            assert isinstance(photo, MyPhoto)
+            assert isinstance(photo, I3_Photo)
             for point in photo.points:
-                assert isinstance(point, MyPoint)
+                assert isinstance(point, I3_Point)
                 max_P.x = max(max_P.x, point.coord_W.x)
                 max_P.y = max(max_P.y, point.coord_W.y)
                 max_P.z = max(max_P.z, point.coord_W.z)
@@ -365,7 +365,7 @@ class MyProject():
             if not camera.transform:
                 continue
 
-            this_photo = MyPhoto(camera.label)
+            this_photo = I3_Photo(camera.label)
             this_photo.photoscanCamera = camera
             allPhotos.append(this_photo)
 
@@ -436,9 +436,9 @@ class MyProject():
         filename = 'report.txt'
 
         r_str = ""
-        r_str += MyPhoto.print_report_header()
+        r_str += I3_Photo.print_report_header()
         for phots in self.photos:
-            assert isinstance(phots, MyPhoto)
+            assert isinstance(phots, I3_Photo)
             r_str += phots.print_report_line()
 
         r_str += '\n'
@@ -452,19 +452,31 @@ class MyProject():
         f.close()
         print('save file ', filename, ' to: ', self.directory)
 
+    def get_raster_over_all_photos(self, cols=22):
 
-    def createProjectSVG(self):
-        filename = 'imageMeasurements.svg'
-
-        s = svg()
-        i = 0
-        totol_height = 0
+        raster = None
         for photo in self.photos:
-            photoSVG_group, group_height = photo.get_photos_SVG()
+            new_raster, size = photo.get_error_raster(cols)
+            if photo == self.photos[0]:
+                raster = new_raster
+            else:
 
-            photo_SVG_group_copy = copy.deepcopy(photoSVG_group)
+                for i, row in enumerate(new_raster):
+                    for j, col in enumerate(row):
+                        raster[i][j] += col
+                        if photo == self.photos[-1]:
+                            # print('before',raster[i][j])
+                            raster[i][j] = raster[i][j] / len(self.photos)
+        return raster, size
+
+
+    def create_project_SVG(self):
+        # inner Functions
+        def add_2_summery_photo(svg, new_photo_svg, i):
+
+            #photo_SVG_group_copy = copy.deepcopy(new_photo_svg)
+            photo_SVG_group_copy = copy.deepcopy(new_photo_svg)
             assert isinstance(photo_SVG_group_copy, g)
-
             if i == 0:
                 # the First Image show all features
                 i = 1
@@ -474,9 +486,43 @@ class MyProject():
             else:
                 # avoid label overlay
                 del (photo_SVG_group_copy._subElements[0])
-
             s.addElement(photo_SVG_group_copy)
+            return i
 
+        def add_2_summery_raster(svg, new_photo_svg, i):
+            pass
+
+
+        def create_error_raster_group():
+            group = g()
+            error_raster, size = self.get_raster_over_all_photos()
+
+
+
+            # todo: hier weiter. raster in svg umwandeln (get_raster_over_all_photos)
+            pass
+            self.get_raster_over_all_photos()
+
+
+        filename = 'imageMeasurements.svg'
+
+        s = svg()
+        i = 0
+        totol_height = 0
+        error_factor = 40
+
+        summery_SVG = SVG_Photo_Representation(self.photos)
+        summery, height = summery_SVG.get_raw_error_vector_svg(error_factor)
+        s.addElement(summery)
+        totol_height = height
+        i = 1
+
+        for photo in self.photos:
+            svg_photo = SVG_Photo_Representation([photo])
+
+            photoSVG_group, group_height = svg_photo.get_raw_error_vector_svg(error_factor)
+
+            #i= add_2_summery_photo(s,photoSVG_group,i)
 
             # Group Transformation
             trans = TransformBuilder()
@@ -491,6 +537,102 @@ class MyProject():
 
         s.save(self.directory + '\\' + filename)
         print('save file ', filename, ' to: ', self.directory)
+
+
+class SVG_Photo_Representation():
+    def __init__(self, photo, svg_width=600):
+
+        """
+
+        :type photo: list of I3_Photo
+        """
+        self.i3Photo = photo
+        self.width = photo[0].photoscanCamera.sensor.width
+        self.height = photo[0].photoscanCamera.sensor.height
+        self.svg_witdh = svg_width
+        self.svg_height = self.svg_witdh / (self.width / self.height)
+
+
+    @property
+    def points(self):
+        points = []
+        for photo in self.i3Photo:
+            points.extend(photo.points)
+        return points
+
+
+    def get_raw_error_vector_svg(self, factor):
+        # SVG Attributes
+        width_svg = self.svg_witdh
+        labelpos = (10, 16)
+        imagepos = (0, 20)
+        radius = 2
+        circle_stroke = 1
+
+        shape_builder = ShapeBuilder()
+        photo_group = g()
+
+        # Add Label
+        label = text("All Photos Error", *labelpos)
+        if (len(self.i3Photo) == 1):
+            label = text(self.i3Photo[0].print_report_line(), *labelpos)
+        textStyle = StyleBuilder()
+        textStyle.setFontSize('16')
+        label.set_style(textStyle.getStyle())
+        photo_group.addElement(label)
+
+        image_group = g()
+        image_frame = shape_builder.createRect(0, 0, width_svg, self.svg_height, 0, 0, strokewidth=1, stroke='navy')
+        image_group.addElement(image_frame)
+        for point in self.points:
+            point_x, point_y = self.transform_2_SVG(point.measurement_I.x,
+                                                    point.measurement_I.y)
+            point_pos = shape_builder.createCircle(point_x, point_y, radius, circle_stroke)  # ,fill='rgba(0,0,0,1)')
+            image_group.addElement(point_pos)
+            image_group.addElement(self.drawErrorVector(40, point))
+
+        # Image Group Translation
+        transImage = TransformBuilder()
+        transImage.setTranslation(*imagepos)
+        image_group.set_transform(transImage.getTransform())
+
+        photo_group.addElement(image_group)
+
+        total_height = imagepos[1] + self.svg_height
+        return photo_group, total_height
+
+    def drawErrorVector(self, factor, point):
+        """
+        :type factor: int
+        :type point: I3_Point
+        """
+
+        error_vector = point.error_I * factor
+        endpoint = point.measurement_I + error_vector
+        x0, y0 = self.transform_2_SVG(point.measurement_I.x, point.measurement_I.y, )
+        x1, y1 = self.transform_2_SVG(endpoint.x, endpoint.y)
+
+        sha = ShapeBuilder()
+        error_line = sha.createLine(x0, y0, x1, y1, 1)
+
+        return error_line
+
+    def get_raster_error_vector_svg(self, svg_with, cols):
+        pass
+
+    def get_raster_count_svg(self, ):
+        pass
+
+
+    def transform_2_SVG(self, x_image, y_image):
+
+
+        x_svg = x_image * self.svg_witdh / self.width
+        y_svg = y_image * self.svg_witdh / self.width
+
+        return int(x_svg), int(y_svg)
+
+
 
 
 def trans_error_image_2_camera(camera, point_pix, point_Camera):
@@ -613,13 +755,13 @@ if __name__ == '__main__':
     doc = PhotoScan.app.document
     chunk = doc.chunk
 
-    project = MyProject()
+    project = I3_Project()
     total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
     project.build_global_point_error()
     project.calc_cov_for_all_points()
     project.print_report()
 
-    project.createProjectSVG()
+    project.create_project_SVG()
     # print(total_error)
     # print(ind_error)
     # print(vars(allPhotos[0].points[1]))

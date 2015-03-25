@@ -1,16 +1,19 @@
 __author__ = 'philipp.atorf'
 
-from analysis import MyPoint
-from analysis import MyPhoto
-from analysis import MyGlobalPoint
-from analysis import MyProject
+from analysis import I3_Point
+from analysis import I3_Photo
+from analysis import I3_GlobalPoint
+from analysis import I3_Project
+from analysis import SVG_Photo_Representation
 import analysis
 import imp
 imp.reload(analysis)
-from analysis import MyPhoto
-from analysis import MyPoint
-from analysis import MyGlobalPoint
-from analysis import MyProject
+from analysis import I3_Photo
+from analysis import I3_Point
+from analysis import I3_GlobalPoint
+from analysis import I3_Project
+from analysis import SVG_Photo_Representation
+
 
 import sys
 import unittest
@@ -20,13 +23,13 @@ import PhotoScan
 #analysis.__dict__.clear()
 
 
-p1 = MyPoint(coord_W=PhotoScan.Vector([0.5794213274747677, 1.0299438009060218, 7.661802396272032]),
+p1 = I3_Point(coord_W=PhotoScan.Vector([0.5794213274747677, 1.0299438009060218, 7.661802396272032]),
                  projection_I=PhotoScan.Vector([672.8680381754943, 1508.2357157087156]),
                  coord_C= PhotoScan.Vector([0.0009213739394838983, 3.56654678465967e-05, 4.941896795797742]),
                  error_W=PhotoScan.Vector([-0.000790515730769048, 0.00014052612581316737, 0.00045336436706833183]),
                  measurement_I=PhotoScan.Vector([672.3115234375, 1508.2142333984375]),
                  ratio_I_2_W=604.0027888776877)
-p2 = MyPoint(coord_W=PhotoScan.Vector([0.5885454295971861, 1.0351837514683544, 7.67401271573676]),
+p2 = I3_Point(coord_W=PhotoScan.Vector([0.5885454295971861, 1.0351837514683544, 7.67401271573676]),
                  projection_I=PhotoScan.Vector([698.624257342221, 1582.757549644876]),
                  coord_C= PhotoScan. Vector([-0.00010325672377653524, 0.000130867965612362, 4.925811420721138]),
                  error_W=PhotoScan.Vector([7.870425463041286e-05, 0.00011070577140159799, -9.663461031195197e-05]),
@@ -35,20 +38,20 @@ p2 = MyPoint(coord_W=PhotoScan.Vector([0.5885454295971861, 1.0351837514683544, 7
 
 
 class TestMyPhoto(unittest.TestCase):
-    photo = MyPhoto()
+    photo = I3_Photo()
     photo.points.append(p1)
     photo.points.append(p2)
 
 
     def test_addPoint(self):
-        photo= MyPhoto()
+        photo = I3_Photo()
         photo.add_point(p1)
 
         self.assertEqual(photo.points[-1], p1)
         self.assertIs(len(photo.points),1)
 
         photo.add_point()
-        self.assertIsInstance(photo.points[-1], MyPoint)
+        self.assertIsInstance(photo.points[-1], I3_Point)
 
 
     def test_calc_sigma(self):
@@ -66,7 +69,7 @@ class TestMyPhoto(unittest.TestCase):
         self.assertAlmostEqual(maxError.y, 0.0790828, 5)
 
     def test_createSVG(self):
-        photo = MyPhoto()
+        photo = I3_Photo()
         photo.add_point(p1)
         photo.add_point(p2)
         photo.label = "test_Label"
@@ -74,10 +77,10 @@ class TestMyPhoto(unittest.TestCase):
         p_bottom_right = PhotoScan.Vector((2000, 2000))
         p_upper_left = PhotoScan.Vector((0, 0))
         p_upper_right = PhotoScan.Vector((2000, 0))
-        photo.add_point(MyPoint(measurement_I=p_bottom_left, projection_I=p_bottom_left))
-        photo.add_point(MyPoint(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 0))))
-        photo.add_point(MyPoint(measurement_I=p_upper_left, projection_I=p_upper_left))
-        photo.add_point(MyPoint(measurement_I=p_upper_right, projection_I=p_upper_right))
+        photo.add_point(I3_Point(measurement_I=p_bottom_left, projection_I=p_bottom_left))
+        photo.add_point(I3_Point(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 0))))
+        photo.add_point(I3_Point(measurement_I=p_upper_left, projection_I=p_upper_left))
+        photo.add_point(I3_Point(measurement_I=p_upper_right, projection_I=p_upper_right))
 
         class psSensor():
             height = 2000
@@ -92,9 +95,9 @@ class TestMyPhoto(unittest.TestCase):
         # Optische Kontrolle des SVGs
         #print(photo.getPhotsSVG()[0].getXML())
 
-
-    def getPhotoforRasterTest(self):
-        photo = MyPhoto()
+    @classmethod
+    def getPhotoforRasterTest(cls):
+        photo = I3_Photo()
         photo.add_point(p1)
         photo.add_point(p2)
         photo.label = "test_Label"
@@ -102,10 +105,10 @@ class TestMyPhoto(unittest.TestCase):
         p_bottom_right = PhotoScan.Vector((2000, 2000))
         p_upper_left = PhotoScan.Vector((0, 0))
         p_upper_right = PhotoScan.Vector((2000, 0))
-        photo.add_point(MyPoint(measurement_I=p_bottom_left, projection_I=PhotoScan.Vector((-1, 2001))))
-        photo.add_point(MyPoint(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 2001))))
-        photo.add_point(MyPoint(measurement_I=p_upper_left, projection_I=PhotoScan.Vector((-1, -1))))
-        photo.add_point(MyPoint(measurement_I=p_upper_right, projection_I=PhotoScan.Vector((2001, -1))))
+        photo.add_point(I3_Point(measurement_I=p_bottom_left, projection_I=PhotoScan.Vector((-1, 2001))))
+        photo.add_point(I3_Point(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 2001))))
+        photo.add_point(I3_Point(measurement_I=p_upper_left, projection_I=PhotoScan.Vector((-1, -1))))
+        photo.add_point(I3_Point(measurement_I=p_upper_right, projection_I=PhotoScan.Vector((2001, -1))))
 
         class psSensor():
             height = 2000
@@ -121,8 +124,8 @@ class TestMyPhoto(unittest.TestCase):
 
     def test_getErrorRaster(self):
         photo = self.getPhotoforRasterTest()
-        errorRaster = photo.get_error_raster(cols=5)
-
+        errorRaster, size = photo.get_error_raster(cols=5)
+        # print(errorRaster)
         # upper left
         self.assertTrue(errorRaster[0][0].x == -1.0)
         self.assertTrue(errorRaster[0][0].y == -1.0)
@@ -146,7 +149,7 @@ class TestMyPhoto(unittest.TestCase):
     def test_getCountRaster(self):
         photo = self.getPhotoforRasterTest()
 
-        countRaster, min, max = photo.get_count_raster(cols=5)
+        countRaster, size, min, max = photo.get_count_raster(cols=5)
         self.assertEqual(countRaster[0][0], 1)
         self.assertEqual(countRaster[0][4], 1)
         self.assertEqual(countRaster[4][0], 1)
@@ -172,21 +175,16 @@ class TestMyPoint(unittest.TestCase):
         self.assertAlmostEqual(std_error_W.z, 0.0003257899, 6)
 
 
-class TestGlobalPoint(unittest.TestCase):
-    gp1 = MyGlobalPoint()
-    gp1.points.append(p1)
-    gp1.points.append(p1)
-    gp1.points.append(p1)
 
 
 class TestMyProject(unittest.TestCase):
-    pho1 = MyPhoto()
+    pho1 = I3_Photo()
     pho1.calc_sigma = lambda: PhotoScan.Vector((2, 13))
 
-    pho2 = MyPhoto()
+    pho2 = I3_Photo()
     pho2.calc_sigma = lambda: PhotoScan.Vector((5, 11))
 
-    project = MyProject()
+    project = I3_Project()
     project.photos = [pho1, pho2]
     def test_calcGlobalSigma(self):
         rms_x, rms_y = self.project.get_RMS_4_all_photos()
@@ -196,6 +194,48 @@ class TestMyProject(unittest.TestCase):
     def test_createProjectSVG(self):
         pass
         #self.project.createProjectSVG()
+
+    def test_get_raster_over_all_photos(self):
+        self.project.photos = [TestMyPhoto.getPhotoforRasterTest()]
+        self.project.photos.append(TestMyPhoto.getPhotoforRasterTest())
+        error_raster, size = self.project.get_raster_over_all_photos(5)
+        self.assertAlmostEqual(error_raster[3][1].x, 0.2469717, 5)
+        self.assertAlmostEqual(error_raster[3][1].y, 0.050282, 5)
+
+
+class TestSVG_Photo_Representation(unittest.TestCase):
+    def test_get_raw_error_vector_svg(self):
+        photo = I3_Photo()
+        photo.add_point(p1)
+        photo.add_point(p2)
+        photo.label = "test_Label"
+        p_bottom_left = PhotoScan.Vector((0, 2000))
+        p_bottom_right = PhotoScan.Vector((2000, 2000))
+        p_upper_left = PhotoScan.Vector((0, 0))
+        p_upper_right = PhotoScan.Vector((2000, 0))
+        photo.add_point(I3_Point(measurement_I=p_bottom_left, projection_I=p_bottom_left))
+        photo.add_point(I3_Point(measurement_I=p_bottom_right, projection_I=PhotoScan.Vector((2001, 2001))))
+        photo.add_point(I3_Point(measurement_I=p_upper_left, projection_I=p_upper_left))
+        photo.add_point(I3_Point(measurement_I=p_upper_right, projection_I=p_upper_right))
+
+        class psSensor():
+            height = 2000
+            width = 2000
+
+        class psCamera():
+            sensor = psSensor()
+
+        cam_dummy = psCamera()
+
+        photo.photoscanCamera = cam_dummy
+        # Optische Kontrolle des SVGs
+        # print(photo.getPhotsSVG()[0].getXML())
+        svgPhoto = SVG_Photo_Representation([photo], 700)
+
+        print(svgPhoto.get_raw_error_vector_svg(40)[0].getXML())
+
+        pass
+
 
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
@@ -219,7 +259,11 @@ class TestAnalysis(unittest.TestCase):
 if __name__ == '__main__':
 
 
-    test_classes_to_run = [TestMyPhoto, TestMyPoint, TestAnalysis, TestGlobalPoint, TestMyProject]
+    test_classes_to_run = [TestMyPhoto,
+                           TestMyPoint,
+                           TestAnalysis,
+                           TestMyProject,
+                           TestSVG_Photo_Representation]
 
     loader = unittest.TestLoader()
 
