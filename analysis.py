@@ -507,12 +507,21 @@ class I3_Project():
         summery_SVG.point_radius = 1
 
         summery, height = summery_SVG.get_raw_error_vector_svg(factor=error_factor)
+
         s.addElement(summery)
         summery_group = g()
         summery_error_raster, height = summery_SVG.get_raw_error_vector_svg(True, factor=error_factor, cols=cols)
         summery_count_raster = summery_SVG.get_raster_count_svg(cols)
+
+        legend = summery_SVG.count_legend
+
+        trans_legend = TransformBuilder()
+        trans_legend.setTranslation(605, 20)
+        legend.set_transform(trans_legend.getTransform())
+
         summery_group.addElement(summery_count_raster)
         summery_group.addElement(summery_error_raster)
+        summery_group.addElement(legend)
 
         # Group Transformation
         trans_raster = TransformBuilder()
@@ -566,6 +575,7 @@ class SVG_Photo_Representation():
         self.point_radius = 2
         self.circle_stroke = 1
         self.p_sigma = None  # todo: p_sigma bestimmen
+        self.count_legend = None
 
     @property
     def points(self):
@@ -574,6 +584,39 @@ class SVG_Photo_Representation():
             points.extend(photo.points)
         return points
 
+
+    def set_count_legend(self, colormap, min_max):
+        group = g()
+        height = 0
+        cat_borders, cat_size = self.__class__.get_categroy_ranges(min_max, colormap)
+        shape_builder = ShapeBuilder()
+
+        title = text("Point Count per Cell", 0, -4)
+        group.addElement(title)
+
+        color_rec = shape_builder.createRect(0, height, 20, 20, strokewidth=1, fill='white')
+        label = text("&lt; {:9.2f}".format(1), 30, 16)
+        height = 20
+
+        group.addElement(label)
+        group.addElement(color_rec)
+        for i, border in enumerate(cat_borders):
+            # draw rect
+            color_rec = shape_builder.createRect(0, 20 * i + height, 20, 20, strokewidth=1, fill=colormap[i])
+            label = text("&lt; {:9.2f}".format(border), 30, 20 * (i + 1) - 4 + height)
+
+            group.addElement(label)
+            group.addElement(color_rec)
+
+        self.count_legend = group
+
+        # draw label
+
+        return group
+
+
+    def get_raster_legend(self):
+        return self.count_legend
 
     def get_lable(self, ):
 
@@ -627,18 +670,26 @@ class SVG_Photo_Representation():
 
 
     @classmethod
-    def get_color_4_value(cls, min_max, val):
+    def get_color_4_value(cls, min_max, val, colormap):
         min_val = min_max[0]
-        max_val = min_max[1]
-        val_range = max_val - min_val
-        cat_count = len(cls.colormap)
-        cat_size = val_range / cat_count + 0.5
+        cat_size = cls.get_categroy_ranges(min_max, colormap)[1]
         cat_value = int((val - min_val) / cat_size)
 
-        return cat_value
+        return colormap[cat_value]
 
-    def getLegend(self):
-        pass
+    @classmethod
+    def get_categroy_ranges(cls, min_max, colormap):
+        min_val = min_max[0] - 0.00000001
+        max_val = min_max[1] + 0.00000001
+        val_range = max_val - min_val
+        cat_count = len(colormap)
+        cat_size = val_range / cat_count
+        cat_border = []
+        for i, color in enumerate(colormap):
+            cat_border.append((i + 1) * cat_size)
+        return cat_border, cat_size
+
+
 
     def get_raster_count_svg(self, cols):
         coutn_raster, size = self.getRaster(cols)
@@ -655,6 +706,8 @@ class SVG_Photo_Representation():
         min_count = max(min_max_list)
 
         min_max.extend((max_count, min_count))
+        self.set_count_legend(self.colormap, min_max)
+
         for i, col in enumerate(coutn_raster):
             for j, row in enumerate(col):
                 coutn_raster[i][j] = len(row)
@@ -662,7 +715,7 @@ class SVG_Photo_Representation():
                 pos_x, pos_y = self.transform_2_SVG(j * size, i * size)
                 size_svg = self.transform_2_SVG(size, size)[0]
 
-                color = self.colormap[SVG_Photo_Representation.get_color_4_value(min_max, len(row))]
+                color = SVG_Photo_Representation.get_color_4_value(min_max, len(row), self.colormap)
                 if len(row) <= 1:
                     color = 'white'
                 count_rect = shape_builder.createRect(pos_x,

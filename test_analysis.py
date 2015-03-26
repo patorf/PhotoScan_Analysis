@@ -204,7 +204,7 @@ class TestMyProject(unittest.TestCase):
 
 
 class TestSVG_Photo_Representation(unittest.TestCase):
-    def test_get_raw_error_vector_svg(self):
+    def getSVGObject(self):
         photo = I3_Photo()
         photo.add_point(p1)
         photo.add_point(p2)
@@ -228,19 +228,40 @@ class TestSVG_Photo_Representation(unittest.TestCase):
         cam_dummy = psCamera()
 
         photo.photoscanCamera = cam_dummy
+        return SVG_Photo_Representation([photo], 700)
+
+    def test_get_raw_error_vector_svg(self):
+
         # Optische Kontrolle des SVGs
         # print(photo.getPhotsSVG()[0].getXML())
-        svgPhoto = SVG_Photo_Representation([photo], 700)
+        svgPhoto = self.getSVGObject()
 
         # print(svgPhoto.get_raw_error_vector_svg(40)[0].getXML())
 
 
     def test_colormap(self):
-        SVG_Photo_Representation.colormap = [0, 1, 2]
+        colormap = [0, 1, 2]
         true_cat = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
         for i in range(1, 16):
-            cat = SVG_Photo_Representation.get_color_4_value([0, 15], i)
+            cat = SVG_Photo_Representation.get_color_4_value([0, 15], i, colormap)
+            # print(i,cat)
             self.assertEqual(true_cat[i - 1], cat)
+            # print(SVG_Photo_Representation.get_color_4_value([0,15],15))
+
+    def test_get_category_ranges(self):
+        colormap = [0, 1, 2]
+        true_border = [1, 2, 3]
+
+        cat_borders = SVG_Photo_Representation.get_categroy_ranges([0, 3], colormap)[0]
+        self.assertEqual(true_border, [int(i) for i in cat_borders])
+        # print(SVG_Photo_Representation.get_categroy_ranges([0,15]))
+
+    def test_raster_legend(self):
+        photo = I3_Photo()
+        svg_photo = self.getSVGObject()
+        svg_photo.set_count_legend(SVG_Photo_Representation.colormap, [1, 9])
+
+        print(svg_photo.count_legend.getXML())
 
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
