@@ -548,6 +548,7 @@ class I3_Project():
 
 class SVG_Photo_Representation():
     colormap = ['rgb(254,240,217)', 'rgb(253,204,138)', 'rgb(252,141,89)', 'rgb(215,48,31)']
+    colormap_green_2_red = ['rgb(141, 236, 14)', 'rgb( 222,  239, 13)', 'rgb(243, 149, 11)', 'rgb(244, 10, 38)']
 
     def __init__(self, photo, svg_width=600):
 
@@ -564,6 +565,7 @@ class SVG_Photo_Representation():
         self.imagepos = (0, 20)
         self.point_radius = 2
         self.circle_stroke = 1
+        self.p_sigma = None  # todo: p_sigma bestimmen
 
     @property
     def points(self):
@@ -635,6 +637,9 @@ class SVG_Photo_Representation():
 
         return cat_value
 
+    def getLegend(self):
+        pass
+
     def get_raster_count_svg(self, cols):
         coutn_raster, size = self.getRaster(cols)
         min_max_list = []
@@ -650,7 +655,6 @@ class SVG_Photo_Representation():
         min_count = max(min_max_list)
 
         min_max.extend((max_count, min_count))
-        print(min_max)
         for i, col in enumerate(coutn_raster):
             for j, row in enumerate(col):
                 coutn_raster[i][j] = len(row)
@@ -694,9 +698,16 @@ class SVG_Photo_Representation():
         x1, y1 = self.transform_2_SVG(endpoint.x, endpoint.y)
 
         sha = ShapeBuilder()
-        # todo: color nach 3sigma regel
 
-        error_line = sha.createLine(x0, y0, x1, y1, 1)
+        color = 'black'
+        if self.p_sigma:
+            error_length = error_vector.norm()
+            color = self.colormap_green_2_red[3]
+            for i in range(1, 4):
+                if i * error_length <= error_length:
+                    color = self.colormap_green_2_red[i - 1]
+
+        error_line = sha.createLine(x0, y0, x1, y1, 1, stroke=color)
 
         return error_line
 
@@ -755,14 +766,12 @@ class SVG_Photo_Representation():
                     pos_center = PhotoScan.Vector((j * size + (size / 2), (i * size + (size / 2))))
                     pseuso_projection = pos_center + error_mean
 
-                    if i == 12 and j == 3:
-                        print(pos_center, pseuso_projection)
+
                     new_point_at_cell_center = I3_Point(measurement_I=pos_center, projection_I=pseuso_projection)
 
                     new_points.append(new_point_at_cell_center)
                     # error_raster[i][j] = new_point_at_cell_center
-                if len(row) == 1:
-                    print(i, j, row[0].error_I)
+
 
         return new_points, size
 
