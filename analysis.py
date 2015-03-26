@@ -501,19 +501,25 @@ class I3_Project():
         i = 0
         totol_height = 0
         error_factor = 40
+        cols = 20
 
         summery_SVG = SVG_Photo_Representation(self.photos)
+        summery_SVG.point_radius = 1
 
         summery, height = summery_SVG.get_raw_error_vector_svg(factor=error_factor)
         s.addElement(summery)
+        summery_group = g()
+        summery_error_raster, height = summery_SVG.get_raw_error_vector_svg(True, factor=error_factor, cols=cols)
+        summery_count_raster = summery_SVG.get_raster_count_svg(cols)
+        summery_group.addElement(summery_count_raster)
+        summery_group.addElement(summery_error_raster)
 
-        summery_raster, height = summery_SVG.get_raw_error_vector_svg(True, factor=error_factor, cols=40)
         # Group Transformation
         trans_raster = TransformBuilder()
         trans_raster.setTranslation(700, 0)
-        summery_raster.set_transform(trans_raster.getTransform())
+        summery_group.set_transform(trans_raster.getTransform())
 
-        s.addElement(summery_raster)
+        s.addElement(summery_group)
 
         totol_height = height
         i = 1
@@ -541,6 +547,8 @@ class I3_Project():
 
 
 class SVG_Photo_Representation():
+    colormap = ['rgb(254,240,217)', 'rgb(253,204,138)', 'rgb(252,141,89)', 'rgb(215,48,31)']
+
     def __init__(self, photo, svg_width=600):
 
         """
@@ -616,12 +624,62 @@ class SVG_Photo_Representation():
         return photo_group, total_height
 
 
+    @classmethod
+    def get_color_4_value(cls, min_max, val):
+        min_val = min_max[0]
+        max_val = min_max[1]
+        val_range = max_val - min_val
+        cat_count = len(cls.colormap)
+        cat_size = val_range / cat_count + 0.5
+        cat_value = int((val - min_val) / cat_size)
+
+        return cat_value
+
+    def get_raster_count_svg(self, cols):
+        coutn_raster, size = self.getRaster(cols)
+        min_max_list = []
+        shape_builder = ShapeBuilder()
+        group = g()
+        min_max = []
+
+        for i, col in enumerate(coutn_raster):
+            for j, row in enumerate(col):
+                min_max_list.append(len(row))
+
+        max_count = min(min_max_list)
+        min_count = max(min_max_list)
+
+        min_max.extend((max_count, min_count))
+        print(min_max)
+        for i, col in enumerate(coutn_raster):
+            for j, row in enumerate(col):
+                coutn_raster[i][j] = len(row)
+
+                pos_x, pos_y = self.transform_2_SVG(j * size, i * size)
+                size_svg = self.transform_2_SVG(size, size)[0]
+
+                color = self.colormap[SVG_Photo_Representation.get_color_4_value(min_max, len(row))]
+                if len(row) <= 1:
+                    color = 'white'
+                count_rect = shape_builder.createRect(pos_x,
+                                                      pos_y,
+                                                      size_svg,
+                                                      size_svg,
+                                                      strokewidth=0,
+                                                      fill=color)
+                group.addElement(count_rect)
 
 
 
-    def get_raster_count_svg(self, ):
 
-        pass
+
+        # Image Group Translation
+        transImage = TransformBuilder()
+        transImage.setTranslation(*self.imagepos)
+        group.set_transform(transImage.getTransform())
+
+        return group
+
 
 
     def drawErrorVector(self, point, factor=30, ):
@@ -648,7 +706,7 @@ class SVG_Photo_Representation():
         x_svg = x_image * self.svg_witdh / self.width
         y_svg = y_image * self.svg_witdh / self.width
 
-        return int(x_svg), int(y_svg)
+        return int(x_svg + 0.5), int(y_svg + 0.5)  # correct int round
 
     def getRaster(self, cols=22):
 
@@ -663,8 +721,8 @@ class SVG_Photo_Representation():
         error_raster = [[[] for x in range(cols)] for x in range(rows)]
 
         for point in self.points:
-            i = int(point.measurement_I.y * (rows - 1) / height_I)
-            j = int(point.measurement_I.x * (cols - 1) / width_I)
+            i = int(point.measurement_I.y * (rows ) / height_I)
+            j = int(point.measurement_I.x * (cols ) / width_I)
             # print('floatcols', point.measurement_I.x * (cols - 1) / width_I)
             # print('floatrows', point.measurement_I.y * (rows - 1) / height_I)
 
@@ -690,15 +748,21 @@ class SVG_Photo_Representation():
                     error_vector += point.error_I
 
                 error_mean = error_vector
+
                 if len(row):  # if empty  avoid div by 0
                     error_mean = (error_vector / len(row))
 
                     pos_center = PhotoScan.Vector((j * size + (size / 2), (i * size + (size / 2))))
                     pseuso_projection = pos_center + error_mean
+
+                    if i == 12 and j == 3:
+                        print(pos_center, pseuso_projection)
                     new_point_at_cell_center = I3_Point(measurement_I=pos_center, projection_I=pseuso_projection)
 
                     new_points.append(new_point_at_cell_center)
                     # error_raster[i][j] = new_point_at_cell_center
+                if len(row) == 1:
+                    print(i, j, row[0].error_I)
 
         return new_points, size
 

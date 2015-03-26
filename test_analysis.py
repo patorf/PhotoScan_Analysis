@@ -232,10 +232,15 @@ class TestSVG_Photo_Representation(unittest.TestCase):
         # print(photo.getPhotsSVG()[0].getXML())
         svgPhoto = SVG_Photo_Representation([photo], 700)
 
-        print(svgPhoto.get_raw_error_vector_svg(40)[0].getXML())
+        # print(svgPhoto.get_raw_error_vector_svg(40)[0].getXML())
 
-        pass
 
+    def test_colormap(self):
+        SVG_Photo_Representation.colormap = [0, 1, 2]
+        true_cat = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+        for i in range(1, 16):
+            cat = SVG_Photo_Representation.get_color_4_value([0, 15], i)
+            self.assertEqual(true_cat[i - 1], cat)
 
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
