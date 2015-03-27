@@ -343,29 +343,6 @@ class I3_Project():
 
 
     def create_project_SVG(self):
-        # inner Functions
-        def add_2_summery_photo(svg, new_photo_svg, i):
-
-            #photo_SVG_group_copy = copy.deepcopy(new_photo_svg)
-            photo_SVG_group_copy = copy.deepcopy(new_photo_svg)
-            assert isinstance(photo_SVG_group_copy, g)
-            if i == 0:
-                # the First Image show all features
-                i = 1
-                textelement = photo_SVG_group_copy.getElementAt(0)
-                assert isinstance(textelement, text)
-                textelement._subElements[0].content = "All Photos"
-            else:
-                # avoid label overlay
-                del (photo_SVG_group_copy._subElements[0])
-            s.addElement(photo_SVG_group_copy)
-            return i
-
-        def add_2_summery_raster(svg, new_photo_svg, i):
-            pass
-
-
-
 
         filename = 'imageMeasurements.svg'
 
