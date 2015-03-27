@@ -122,42 +122,10 @@ class TestMyPhoto(unittest.TestCase):
         photo.photoscanCamera = cam_dummy
         return photo
 
-    def test_getErrorRaster(self):
-        photo = self.getPhotoforRasterTest()
-        errorRaster, size = photo.get_error_raster(cols=5)
-        # print(errorRaster)
-        # upper left
-        self.assertTrue(errorRaster[0][0].x == -1.0)
-        self.assertTrue(errorRaster[0][0].y == -1.0)
-
-        #upper right
-        self.assertTrue(errorRaster[0][4].x == 1.0)
-        self.assertTrue(errorRaster[0][4].y == -1.0)
-
-        #bottom left
-        self.assertTrue(errorRaster[4][0].x == -1.0)
-        self.assertTrue(errorRaster[4][0].y == 1.0)
-
-        #bottom right
-        self.assertTrue(errorRaster[4][4].x == 1.0)
-        self.assertTrue(errorRaster[4][4].y == 1.0)
-
-        self.assertTrue(errorRaster[2][2].x == 0)
-        self.assertTrue(errorRaster[2][2].y == 0)
 
 
-    def test_getCountRaster(self):
-        photo = self.getPhotoforRasterTest()
 
-        countRaster, size, min, max = photo.get_count_raster(cols=5)
-        self.assertEqual(countRaster[0][0], 1)
-        self.assertEqual(countRaster[0][4], 1)
-        self.assertEqual(countRaster[4][0], 1)
-        self.assertEqual(countRaster[4][4], 1)
-        self.assertEqual(countRaster[1][1], 0)
 
-        self.assertEqual(min, 0)
-        self.assertEqual(max, 2)
 
 
 class TestMyPoint(unittest.TestCase):
@@ -195,12 +163,6 @@ class TestMyProject(unittest.TestCase):
         pass
         #self.project.createProjectSVG()
 
-    def test_get_raster_over_all_photos(self):
-        self.project.photos = [TestMyPhoto.getPhotoforRasterTest()]
-        self.project.photos.append(TestMyPhoto.getPhotoforRasterTest())
-        error_raster, size = self.project.get_raster_over_all_photos(5)
-        self.assertAlmostEqual(error_raster[3][1].x, 0.2469717, 5)
-        self.assertAlmostEqual(error_raster[3][1].y, 0.050282, 5)
 
 
 class TestSVG_Photo_Representation(unittest.TestCase):
