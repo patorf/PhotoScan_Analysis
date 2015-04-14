@@ -20,7 +20,9 @@ class I3_Photo(object):
 
         self.label = label
         self.points = []
+        """:type : list of I3_Point"""
         self.photoscanCamera = None
+        self.sigma = None
 
     def add_point(self, new_point=None):
         """
@@ -33,26 +35,29 @@ class I3_Photo(object):
         return self.points[-1]
 
     def calc_sigma(self):
-        # 'xy' -> Point
-        # 'x,y' -> Sigma for x and y
-        error_quad_sum = None
-        count = 0
-        error_quad_sum = PhotoScan.Vector([0, 0])
-        error_matrix = self.get_error_matrix()
+        if self.sigma is None:
+            # 'xy' -> Point
+            # 'x,y' -> Sigma for x and y
+            error_quad_sum = None
+            count = 0
+            error_quad_sum = PhotoScan.Vector([0, 0])
+            error_matrix = self.get_error_matrix()
 
-        # error_quad_sum.x += point.error_I.x ** 2
-        # error_quad_sum.y += point.error_I.y ** 2
+            # error_quad_sum.x += point.error_I.x ** 2
+            # error_quad_sum.y += point.error_I.y ** 2
 
-        # count += 1
+            # count += 1
 
-        # sigma_x = math.sqrt(error_quad_sum.x / count)
-        # sigma_y = math.sqrt(error_quad_sum.y / count)
+            # sigma_x = math.sqrt(error_quad_sum.x / count)
+            # sigma_y = math.sqrt(error_quad_sum.y / count)
 
-        cov = calc_Cov_from_ErrorMatrix(error_matrix)
-        sigma_x = math.sqrt(cov[0, 0])
-        sigma_y = math.sqrt(cov[1, 1])
-        # return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
-        return PhotoScan.Vector([sigma_x, sigma_y])
+            cov = calc_Cov_from_ErrorMatrix(error_matrix)
+            sigma_x = math.sqrt(cov[0, 0])
+            sigma_y = math.sqrt(cov[1, 1])
+            # return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
+            self.sigma = PhotoScan.Vector([sigma_x, sigma_y])
+        return self.sigma
+
 
     def get_max(self):
         error_matrix = self.get_error_matrix()
@@ -76,13 +81,13 @@ class I3_Photo(object):
 
 
         r_str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n'.format('Cam #',
-                                                                             'Projections',
-                                                                             'SIG x',
-                                                                             'SIG y',
-                                                                             'SIG P',
-                                                                             'MAX x',
-                                                                             'MAX y'
-                                                                             )
+                                                                               'Projections',
+                                                                               'SIG x',
+                                                                               'SIG y',
+                                                                               'SIG P',
+                                                                               'MAX x',
+                                                                               'MAX y'
+                                                                               )
 
         return r_str
 
@@ -102,15 +107,6 @@ class I3_Photo(object):
         return r_str
 
 
-
-
-
-
-
-
-
-
-
 class I3_Point():
     def __init__(self, projection_I=None,
                  measurement_I=None,
@@ -125,6 +121,7 @@ class I3_Point():
         self.coord_W = coord_W
         self.coord_C = coord_C
         self.error_W = error_W
+        self.measurement_C = None
         self.sigma_I = None
 
 
@@ -140,7 +137,6 @@ class I3_Point():
 
     @property
     def error_I(self):
-
         return self.projection_I - self.measurement_I
 
     @property
@@ -182,9 +178,27 @@ class I3_Project():
         self.photos = []
         """:type: list[I3_Photo]"""
 
-        self.points = defaultdict(I3_GlobalPoint)
+        # self.points = defaultdict(I3_GlobalPoint)
         self.path = PhotoScan.app.document.path
         self.directory = "\\".join(self.path.split('\\')[:-1])
+
+    def get_point_photos_reference(self):
+        """
+
+        :rtype : dict
+        """
+
+        points_photo_dict = {}
+        for photo in self.photos:
+            for point in photo.points:
+                if point.track_id in points_photo_dict:
+                    points_photo_dict[point.track_id].append(photo)
+                else:
+                    points_photo_dict[point.track_id] = []
+                    points_photo_dict[point.track_id].append(photo)
+
+        return points_photo_dict
+
 
 
     def build_global_point_error(self):
@@ -297,6 +311,7 @@ class I3_Project():
                         point.coord_C = point_C
                         point.coord_W = point_W
                         point.error_W = error_W
+                        point.measurement_C = measurement_C
                         # print('ratio',point.ratio_W_2_I)
                         # print('disttocenter',point_C.norm())
                         # print('error_W', point.error_W)
@@ -338,8 +353,6 @@ class I3_Project():
         f.write(r_str)
         f.close()
         print('save file ', filename, ' to: ', self.directory)
-
-
 
 
     def create_project_SVG(self):
@@ -387,7 +400,7 @@ class I3_Project():
 
             photoSVG_group, group_height = svg_photo.get_raw_error_vector_svg(factor=error_factor)
 
-            #i= add_2_summery_photo(s,photoSVG_group,i)
+            # i= add_2_summery_photo(s,photoSVG_group,i)
 
             # Group Transformation
             trans = TransformBuilder()
@@ -404,6 +417,290 @@ class I3_Project():
         print('save file ', filename, ' to: ', self.directory)
 
 
+class X_vector_element():
+    paramerter_type_point = 'point'
+    paramerter_type_cam = 'cam'
+    value_type_X = 'X'
+    value_type_Y = 'Y'
+    value_type_Z = 'Z'
+    value_type_R = 'R'
+
+    def __init__(self, parameter_type, value_type, value, id):
+        self.value_type = value_type
+        self.parameter_type = parameter_type
+        self.value = value
+        self.id = id
+
+    def __str__(self):
+
+        if self.value_type == self.value_type_R:
+            return "{:s} {:s} :{:s} id:{:s}".format(self.parameter_type,
+                                                    self.value_type,
+                                                    str(self.value),
+                                                    str(self.id))
+        else:
+            return "{:s} {:s} :{:.9f} id:{:s}".format(self.parameter_type,
+                                                      self.value_type,
+                                                      self.value,
+                                                      str(self.id))
+
+
+class L_vector_element():
+    value_type_x = 'x'
+    value_type_y = 'y'
+
+    def __init__(self, cam_id, track_id, value_type, value, sigma):
+        self.cam_id = cam_id
+        self.track_id = track_id
+        self.value_type = value_type
+        self.value = value
+        self.sigma = sigma
+
+    def __str__(self):
+        return "{:s} track_id:{:d} value_type:{:s} value:{:.9f} sigam:{:.9f} ".format(self.cam_id,
+                                                                                      self.track_id,
+                                                                                      self.value_type,
+                                                                                      self.value,
+                                                                                      self.sigma)
+
+
+class peseudo_3D_intersection_adjustment():
+    measurment_x = 'x'
+    measurment_y = 'y'
+
+    rotation = 'R'
+    point_X = 'X'
+    point_Y = 'Y'
+    point_Z = 'Z'
+
+    cam_X = 'X_0'
+    cam_Y = 'Y_0'
+    cam_Z = 'Z_0'
+
+    def __init__(self, point_with_reference=None):
+        self.points = point_with_reference
+
+
+    def eig(self, m):
+        def dete(a):
+            return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
+                    - a[1][0] * (a[0][1] * a[2][2] - a[2][1] * a[0][2])
+                    + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
+
+        p1 = m[0, 1] ** 2 + m[0, 2] ** 2 + m[1, 2] ** 2
+        q = m[0, 0] + m[1, 1] + m[2, 2]  # trace
+        p2 = (m[0, 0] - q) ** 2 + (m[1, 1] - q) ** 2 + (m[2, 2] - q) ** 2 + 2 * p1
+        p = math.sqrt(p2 / 6)
+        I = PhotoScan.Matrix.diag([1, 1, 1])
+        B = (1 / p) * (m - q * I)  # I is the identity matrix
+        r = dete(B) / 2
+
+        if (r <= -1):
+            phi = math.pi / 3
+        elif (r >= 1):
+            phi = 0
+        else:
+            phi = math.acos(r) / 3
+            # the eigenvalues satisfy eig3 <= eig2 <= eig1
+        eig1 = q + 2 * p * math.cos(phi)
+        eig3 = q + 2 * p * math.cos(phi + (2 * math.pi / 3))
+        eig2 = 3 * q - eig1 - eig3  # since trace(A) = eig1 + eig2 + eig3
+        return None
+
+    def get_measurment_vector_4_track_id(self, point_photo_reference, track_id):
+        """
+
+        :type photos: list of I3_Photo
+        """
+
+        # for track_id,photos in point_photo_reference.items():
+        photos = point_photo_reference[track_id]
+        measurement_list = []
+        for photo in photos:
+            for point in photo.points:
+                if point.track_id == track_id:
+                    assert isinstance(photo, I3_Photo)
+                    measurement_list.append((photo.label, point.measurement_I))
+        return track_id, measurement_list
+
+    def get_cov_for_point(self, track_id):
+        jacobian_matrix, X_vector, L_vector = self.get_jacobian(track_id)
+
+        A = jacobian_matrix
+        P = self.get_P_matrix(L_vector)
+        N = A.t() * P * A
+        Qxx = N.inv()
+        print(math.sqrt(Qxx[0, 0]))
+        print(math.sqrt(Qxx[1, 1]))
+        print(math.sqrt(Qxx[2, 2]))
+
+        return Qxx
+
+    def get_P_matrix(self, L_vector, sigma0=1):
+        """
+
+        :type L_vector: list of L_vector_element
+        """
+        K_ll_diag = []
+        for L_element in L_vector:
+            k_l = L_element.sigma ** 2
+            K_ll_diag.append(k_l)
+        K_ll = PhotoScan.Matrix.diag(K_ll_diag)
+        Q_ll = 1 / sigma0 ** 2 * K_ll
+        # Invers is only allowd for 4x4 Matrix. Invers of diag-matrix is 1/A[i,i]
+        for i in range(0, Q_ll.size[0]):
+            Q_ll[i, i] = 1 / Q_ll[i, i]
+        P = Q_ll
+        return P
+
+
+    def get_jacobian(self, track_id, point_photo_reference=None):
+        if point_photo_reference == None:
+            point_photo_reference = self.points
+        photos = point_photo_reference[track_id]
+        X_vector = []
+        L_vectro = []
+        jacobian = []
+        for photo in photos:
+            """:type photo: I3_Photo"""
+            assert isinstance(photo, I3_Photo)
+            X_to_optimize = [self.point_X, self.point_Y, self.point_Z]
+
+            X_vector_for_cam = []
+
+            L_vector_for_cam = []
+
+            paramerter_type = X_vector_element.paramerter_type_cam
+            R_t = photo.photoscanCamera.transform
+
+            R = PhotoScan.Matrix([[R_t[0, 0], R_t[0, 1], R_t[0, 2]],
+                                  [R_t[1, 0], R_t[1, 1], R_t[1, 2]],
+                                  [R_t[2, 0], R_t[2, 1], R_t[2, 2]]])
+            cam_R = X_vector_element(paramerter_type,
+                                     X_vector_element.value_type_R,
+                                     R,
+                                     photo.label)
+            cam_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, photo.photoscanCamera.center.x,
+                                     photo.label)
+            cam_Y = X_vector_element(paramerter_type, X_vector_element.value_type_Y, photo.photoscanCamera.center.y,
+                                     photo.label)
+            cam_Z = X_vector_element(paramerter_type, X_vector_element.value_type_Z, photo.photoscanCamera.center.z,
+                                     photo.label)
+
+            X_vector_for_cam.extend([cam_X, cam_Y, cam_Z, cam_R])
+
+            # point = photo.points[0]
+
+
+            for point in photo.points:
+                if point.track_id == track_id:
+                    paramerter_type = X_vector_element.paramerter_type_point
+                    point_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, point.coord_W.x,
+                                               track_id)
+                    point_Y = X_vector_element(paramerter_type, X_vector_element.value_type_Y, point.coord_W.y,
+                                               track_id)
+                    point_Z = X_vector_element(paramerter_type, X_vector_element.value_type_Z, point.coord_W.z,
+                                               track_id)
+                    X_vector_for_cam.extend([point_X, point_Y, point_Z])
+
+                    # todo: sigma ist noch fuer pixel ! das muss geaendert werden
+                    L_x = L_vector_element(photo.label, track_id, L_vector_element.value_type_x, point.measurement_C.x,
+                                           photo.calc_sigma().x)
+                    L_y = L_vector_element(photo.label, track_id, L_vector_element.value_type_y, point.measurement_C.y,
+                                           photo.calc_sigma().y)
+
+                    L_vector_for_cam.extend([L_x, L_y])
+
+            jacobian_row = self.get_jacobian_row_for_point(X_vector_for_cam,
+                                                           L_vector_for_cam,
+                                                           X_to_optimize)
+
+            X_vector.extend(X_vector_for_cam)
+            L_vectro.extend(L_vector_for_cam)
+            jacobian.extend(jacobian_row)
+        jacobian_matrix = PhotoScan.Matrix(jacobian)
+        N = jacobian_matrix.t() * jacobian_matrix
+        print(jacobian_matrix)
+        print("N_inv", N.inv())
+        return jacobian_matrix, X_vector, L_vectro
+
+
+    def get_jacobian_row_for_point(self, X_vector, L_vector, X_used):
+        """
+        get the row of the jacobian for a specific parameter - measurement combination
+
+        :type X_vector: list of X_vector_element
+        :type L_vector: list of L_vector_element
+        :type X_used: list of str
+        :param X_vector: list of X_vector_element
+        :param L_vector: list of L_vector_element
+        :param X_used: list of str
+        :return:
+        """
+
+        z = 1  # because all unprojected points has z=1
+        R = None
+        X_0 = None
+        Y_0 = None
+        Z_0 = None
+        X = None
+        Y = None
+        Z = None
+        for X_element in X_vector:
+            print(X_element)
+            if X_element.parameter_type == X_element.paramerter_type_cam:
+                if X_element.value_type == X_element.value_type_R:
+                    R = X_element.value
+                elif X_element.value_type == X_element.value_type_X:
+                    X_0 = X_element.value
+                elif X_element.value_type == X_element.value_type_Y:
+                    Y_0 = X_element.value
+                elif X_element.value_type == X_element.value_type_Z:
+                    Z_0 = X_element.value
+            elif X_element.parameter_type == X_element.paramerter_type_point:
+                if X_element.value_type == X_element.value_type_X:
+                    X = X_element.value
+                elif X_element.value_type == X_element.value_type_Y:
+                    Y = X_element.value
+                elif X_element.value_type == X_element.value_type_Z:
+                    Z = X_element.value
+
+        k_x = R[0, 0] * (X - X_0) + R[1, 0] * (Y - Y_0) + R[2, 0] * (Z - Z_0)
+        k_y = R[0, 1] * (X - X_0) + R[1, 1] * (Y - Y_0) + R[2, 1] * (Z - Z_0)
+        N = R[0, 2] * (X - X_0) + R[1, 2] * (Y - Y_0) + R[2, 2] * (Z - Z_0)
+        print('kx,ky,N', k_x, k_y, N)
+        row_x = [None] * len(X_used)  # row for x image measurement
+        row_y = [None] * len(X_used)  # row for y image maesurement
+
+        for L in L_vector:
+            print(L)
+            if L.value_type == L_vector_element.value_type_x:
+                for i, X in enumerate(X_used):
+
+
+                    if X == self.point_X:
+                        # df(x)/dX
+                        row_x[i] = -(z / N ** 2) * (R[0, 2] * k_x - R[0, 0] * N)
+                    if X == self.point_Y:
+                        row_x[i] = -(z / N ** 2) * (R[1, 2] * k_x - R[1, 0] * N)
+                    if X == self.point_Z:
+                        row_x[i] = -(z / N ** 2) * (R[2, 2] * k_x - R[2, 0] * N)
+
+
+            elif L.value_type == L_vector_element.value_type_y:
+                for i, X in enumerate(X_used):
+                    if X == self.point_X:
+                        # df(x)/dX
+                        row_y[i] = -(z / N ** 2) * (R[0, 2] * k_y - R[0, 1] * N)
+                    if X == self.point_Y:
+                        row_y[i] = -(z / N ** 2) * (R[1, 2] * k_y - R[1, 1] * N)
+                    if X == self.point_Z:
+                        row_y[i] = -(z / N ** 2) * (R[2, 2] * k_y - R[2, 1] * N)
+        jacobian = [row_x, row_y]
+        print(jacobian)
+        return jacobian
+
+
 class SVG_Photo_Representation():
     colormap = ['rgb(254,240,217)', 'rgb(253,204,138)', 'rgb(252,141,89)', 'rgb(215,48,31)']
     colormap_green_2_red = ['rgb(141, 236, 14)', 'rgb( 222,  239, 13)', 'rgb(243, 149, 11)', 'rgb(244, 10, 38)']
@@ -414,6 +711,7 @@ class SVG_Photo_Representation():
 
         :type photo: list of I3_Photo
         """
+
         self.i3Photo = photo
         self.width = photo[0].photoscanCamera.sensor.width
         self.height = photo[0].photoscanCamera.sensor.height
@@ -488,7 +786,6 @@ class SVG_Photo_Representation():
         label = self.get_lable()
         photo_group.addElement(label)
 
-
         image_group = g()
         image_frame = shape_builder.createRect(0, 0, self.svg_witdh, self.svg_height, 0, 0, strokewidth=1,
                                                stroke='navy')
@@ -539,7 +836,6 @@ class SVG_Photo_Representation():
         return cat_border, cat_size
 
 
-
     def get_raster_count_svg(self, cols):
         coutn_raster, size = self.getRaster(cols)
         min_max_list = []
@@ -585,7 +881,6 @@ class SVG_Photo_Representation():
         group.set_transform(transImage.getTransform())
 
         return group
-
 
 
     def drawErrorVector(self, point, factor=30, ):
@@ -668,15 +963,12 @@ class SVG_Photo_Representation():
                     pos_center = PhotoScan.Vector((j * size + (size / 2), (i * size + (size / 2))))
                     pseuso_projection = pos_center + error_mean
 
-
                     new_point_at_cell_center = I3_Point(measurement_I=pos_center, projection_I=pseuso_projection)
 
                     new_points.append(new_point_at_cell_center)
                     # error_raster[i][j] = new_point_at_cell_center
 
-
         return new_points, size
-
 
 
 def trans_error_image_2_camera(camera, point_pix, point_Camera):
@@ -732,6 +1024,7 @@ def creatExportList(points, covs_dict):
 
 
 def export_no_xyz_cov(points, covs_Dict):
+    #todo: das umschreiben und in project rein
     export_points = creatExportList(points, covs_Dict)
 
     # doc.path  # C:\User....\project.psz
@@ -801,11 +1094,21 @@ if __name__ == '__main__':
 
     project = I3_Project()
     total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
-    project.build_global_point_error()
+    # project.build_global_point_error()
     project.calc_cov_for_all_points()
     project.print_report()
 
-    project.create_project_SVG()
+    points_reference = project.get_point_photos_reference()
+    # for key,value in points_reference.items():
+    #   if len(value)<3:
+    #      print(key)
+    # print(points_reference)
+    adjustment = peseudo_3D_intersection_adjustment(points_reference)
+    # adjustment.get_jacobian(points_reference, 19101)
+    #adjustment.get_jacobian( list(points_reference.keys())[1000])
+    Qxx = adjustment.get_cov_for_point(list(points_reference.keys())[200])
+    print(Qxx)
+    # project.create_project_SVG()
     # print(total_error)
     # print(ind_error)
     # print(vars(allPhotos[0].points[1]))

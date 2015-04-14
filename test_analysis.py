@@ -225,6 +225,14 @@ class TestSVG_Photo_Representation(unittest.TestCase):
 
         print(svg_photo.count_legend.getXML())
 
+
+class TestPeseudo_3D_intersection_adjustment(unittest.TestCase):
+    def test_get_jacobian_row_for_point(self):
+        pass
+
+
+
+
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
                    [0.6, 0.6],
