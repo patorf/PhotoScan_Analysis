@@ -7,6 +7,7 @@ from collections import defaultdict
 from math import sqrt
 
 import PhotoScan
+import svd
 from pysvg.builders import *
 import pysvg
 import imp
@@ -179,6 +180,7 @@ class I3_Project():
         """:type: list[I3_Photo]"""
 
         # self.points = defaultdict(I3_GlobalPoint)
+        self.point_photo_reference = None
         self.path = PhotoScan.app.document.path
         self.directory = "\\".join(self.path.split('\\')[:-1])
 
@@ -187,19 +189,23 @@ class I3_Project():
 
         :rtype : dict
         """
+        if not self.point_photo_reference:
+            points_photo_dict = {}
+            for photo in self.photos:
+                for point in photo.points:
+                    if point.track_id in points_photo_dict:
+                        points_photo_dict[point.track_id].append(photo)
+                    else:
+                        points_photo_dict[point.track_id] = []
+                        points_photo_dict[point.track_id].append(photo)
+            self.point_photo_reference = points_photo_dict
+        return self.point_photo_reference
 
-        points_photo_dict = {}
-        for photo in self.photos:
-            for point in photo.points:
-                if point.track_id in points_photo_dict:
-                    points_photo_dict[point.track_id].append(photo)
-                else:
-                    points_photo_dict[point.track_id] = []
-                    points_photo_dict[point.track_id].append(photo)
+    def export_for_octave(self, filename='octave_export.txt'):
+        adjustment = peseudo_3D_intersection_adjustment(self.get_point_photos_reference())
+        filename = self.directory + '\\' + filename
 
-        return points_photo_dict
-
-
+        adjustment.export_no_xyz_cov(filename)
 
     def build_global_point_error(self):
 
@@ -479,33 +485,28 @@ class peseudo_3D_intersection_adjustment():
 
     def __init__(self, point_with_reference=None):
         self.points = point_with_reference
+        self.points_pos = {}
+
+    def get_eigen_vel_vec(self, m):
+        rows, cols = m.size
+        m_list = []
+
+        for r in range(0, rows):
+            new_row_for_list = []
+            for col in list(m.row(r)):
+                new_row_for_list.append(col)
+            m_list.append(new_row_for_list)
+
+        s, v, d = svd.svd(m_list)
+        eigenvalues = v
+        eigenvector = PhotoScan.Matrix(s)
+
+        # sorted_indeces =sorted(range(len(eigenvalues)), key=lambda k: v[k])
+
+        return eigenvalues, eigenvector
 
 
-    def eig(self, m):
-        def dete(a):
-            return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
-                    - a[1][0] * (a[0][1] * a[2][2] - a[2][1] * a[0][2])
-                    + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
 
-        p1 = m[0, 1] ** 2 + m[0, 2] ** 2 + m[1, 2] ** 2
-        q = m[0, 0] + m[1, 1] + m[2, 2]  # trace
-        p2 = (m[0, 0] - q) ** 2 + (m[1, 1] - q) ** 2 + (m[2, 2] - q) ** 2 + 2 * p1
-        p = math.sqrt(p2 / 6)
-        I = PhotoScan.Matrix.diag([1, 1, 1])
-        B = (1 / p) * (m - q * I)  # I is the identity matrix
-        r = dete(B) / 2
-
-        if (r <= -1):
-            phi = math.pi / 3
-        elif (r >= 1):
-            phi = 0
-        else:
-            phi = math.acos(r) / 3
-            # the eigenvalues satisfy eig3 <= eig2 <= eig1
-        eig1 = q + 2 * p * math.cos(phi)
-        eig3 = q + 2 * p * math.cos(phi + (2 * math.pi / 3))
-        eig2 = 3 * q - eig1 - eig3  # since trace(A) = eig1 + eig2 + eig3
-        return None
 
     def get_measurment_vector_4_track_id(self, point_photo_reference, track_id):
         """
@@ -530,9 +531,7 @@ class peseudo_3D_intersection_adjustment():
         P = self.get_P_matrix(L_vector)
         N = A.t() * P * A
         Qxx = N.inv()
-        print(math.sqrt(Qxx[0, 0]))
-        print(math.sqrt(Qxx[1, 1]))
-        print(math.sqrt(Qxx[2, 2]))
+
 
         return Qxx
 
@@ -594,6 +593,7 @@ class peseudo_3D_intersection_adjustment():
 
             for point in photo.points:
                 if point.track_id == track_id:
+                    self.points_pos[track_id] = point.coord_W
                     paramerter_type = X_vector_element.paramerter_type_point
                     point_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, point.coord_W.x,
                                                track_id)
@@ -619,9 +619,6 @@ class peseudo_3D_intersection_adjustment():
             L_vectro.extend(L_vector_for_cam)
             jacobian.extend(jacobian_row)
         jacobian_matrix = PhotoScan.Matrix(jacobian)
-        N = jacobian_matrix.t() * jacobian_matrix
-        print(jacobian_matrix)
-        print("N_inv", N.inv())
         return jacobian_matrix, X_vector, L_vectro
 
 
@@ -647,7 +644,6 @@ class peseudo_3D_intersection_adjustment():
         Y = None
         Z = None
         for X_element in X_vector:
-            print(X_element)
             if X_element.parameter_type == X_element.paramerter_type_cam:
                 if X_element.value_type == X_element.value_type_R:
                     R = X_element.value
@@ -668,12 +664,11 @@ class peseudo_3D_intersection_adjustment():
         k_x = R[0, 0] * (X - X_0) + R[1, 0] * (Y - Y_0) + R[2, 0] * (Z - Z_0)
         k_y = R[0, 1] * (X - X_0) + R[1, 1] * (Y - Y_0) + R[2, 1] * (Z - Z_0)
         N = R[0, 2] * (X - X_0) + R[1, 2] * (Y - Y_0) + R[2, 2] * (Z - Z_0)
-        print('kx,ky,N', k_x, k_y, N)
+
         row_x = [None] * len(X_used)  # row for x image measurement
         row_y = [None] * len(X_used)  # row for y image maesurement
 
         for L in L_vector:
-            print(L)
             if L.value_type == L_vector_element.value_type_x:
                 for i, X in enumerate(X_used):
 
@@ -697,8 +692,43 @@ class peseudo_3D_intersection_adjustment():
                     if X == self.point_Z:
                         row_y[i] = -(z / N ** 2) * (R[2, 2] * k_y - R[2, 1] * N)
         jacobian = [row_x, row_y]
-        print(jacobian)
         return jacobian
+
+    def export_no_xyz_cov(self, filename='export.txt'):
+
+        point_track_ids = list(self.points.keys())
+        print('outputpoints ', len(point_track_ids))
+        f = open(
+            filename, 'w')
+
+        print('output start for %i points' % len(point_track_ids))
+
+        for track_id in point_track_ids:
+            cov = self.get_cov_for_point(track_id)
+            position = self.points_pos[track_id]
+
+            # doc.path  # C:\User....\project.psz
+
+
+
+
+            output = ''
+            output += '%i;' % track_id
+            output += '%15.12e;%15.12e;%15.12e\n' % (
+                position.x, position.y, position.z)
+            output += '%15.12e;%15.12e;%15.12e\n' % (
+                cov.row(0).x, cov.row(0).y, cov.row(0).z)
+            output += '%15.12e;%15.12e;%15.12e\n' % (
+                cov.row(1).x, cov.row(1).y, cov.row(1).z)
+            output += '%15.12e;%15.12e;%15.12e' % (
+                cov.row(2).x, cov.row(2).y, cov.row(2).z)
+
+            if track_id != point_track_ids[-1]:
+                output += '\n'
+            f.write(output)
+
+        f.close()
+        print('output finish')
 
 
 class SVG_Photo_Representation():
@@ -1023,35 +1053,7 @@ def creatExportList(points, covs_dict):
     return export_points
 
 
-def export_no_xyz_cov(points, covs_Dict):
-    #todo: das umschreiben und in project rein
-    export_points = creatExportList(points, covs_Dict)
 
-    # doc.path  # C:\User....\project.psz
-
-    f = open(
-        'C:\\Users\\philipp.atorf.INTERN\\Downloads\\building\\export.txt', 'w')
-
-    print('output start for %i points' % len(export_points))
-
-    for point in export_points:
-        output = ''
-        output += '%i;' % point[0]
-        output += '%15.12e;%15.12e;%15.12e\n' % (
-            point[1].x, point[1].y, point[1].z)
-        output += '%15.12e;%15.12e;%15.12e\n' % (
-            point[2].row(0).x, point[2].row(0).y, point[2].row(0).z)
-        output += '%15.12e;%15.12e;%15.12e\n' % (
-            point[2].row(1).x, point[2].row(1).y, point[2].row(1).z)
-        output += '%15.12e;%15.12e;%15.12e' % (
-            point[2].row(2).x, point[2].row(2).y, point[2].row(2).z)
-
-        if point != export_points[-1]:
-            output += '\n'
-        f.write(output)
-
-    f.close()
-    print('output finish')
 
 
 def export_no_xyz_std(points, covs_Dict):
@@ -1098,16 +1100,18 @@ if __name__ == '__main__':
     project.calc_cov_for_all_points()
     project.print_report()
 
-    points_reference = project.get_point_photos_reference()
+    project.export_for_octave()
+
+    # points_reference = project.get_point_photos_reference()
     # for key,value in points_reference.items():
     #   if len(value)<3:
     #      print(key)
     # print(points_reference)
-    adjustment = peseudo_3D_intersection_adjustment(points_reference)
+    # adjustment = peseudo_3D_intersection_adjustment(points_reference)
     # adjustment.get_jacobian(points_reference, 19101)
     #adjustment.get_jacobian( list(points_reference.keys())[1000])
-    Qxx = adjustment.get_cov_for_point(list(points_reference.keys())[200])
-    print(Qxx)
+    # Qxx = adjustment.get_cov_for_point(list(points_reference.keys())[200])
+    # print(Qxx)
     # project.create_project_SVG()
     # print(total_error)
     # print(ind_error)

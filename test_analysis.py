@@ -5,6 +5,7 @@ from analysis import I3_Photo
 from analysis import I3_GlobalPoint
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
+from analysis import peseudo_3D_intersection_adjustment
 import analysis
 import imp
 imp.reload(analysis)
@@ -13,6 +14,8 @@ from analysis import I3_Point
 from analysis import I3_GlobalPoint
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
+from analysis import peseudo_3D_intersection_adjustment
+
 
 
 import sys
@@ -230,8 +233,17 @@ class TestPeseudo_3D_intersection_adjustment(unittest.TestCase):
     def test_get_jacobian_row_for_point(self):
         pass
 
+    def test_eig(self):
+        adju = peseudo_3D_intersection_adjustment()
+        m = PhotoScan.Matrix([[504, 360, 180], [360, 360, 0], [180, 0, 720]])
+        eig_valu, eig_vec = adju.neweig(m)
+        self.assertAlmostEqual(eig_valu[0], 910.06995, 4)
+        self.assertAlmostEqual(eig_valu[1], 44.81966, 4)
+        self.assertAlmostEqual(eig_valu[2], 629.11038, 4)
 
-
+        self.assertAlmostEqual(eig_vec[0, 0], -0.65580, 4)
+        self.assertAlmostEqual(eig_vec[0, 1], 0.64879, 4)
+        self.assertAlmostEqual(eig_vec[0, 2], 0.38600, 4)
 
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
@@ -259,7 +271,8 @@ if __name__ == '__main__':
                            TestMyPoint,
                            TestAnalysis,
                            TestMyProject,
-                           TestSVG_Photo_Representation]
+                           TestSVG_Photo_Representation,
+                           TestPeseudo_3D_intersection_adjustment]
 
     loader = unittest.TestLoader()
 
