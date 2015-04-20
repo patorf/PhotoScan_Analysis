@@ -6,6 +6,7 @@ from analysis import I3_GlobalPoint
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
 from analysis import peseudo_3D_intersection_adjustment
+from analysis import Py_2_OpenScad
 import analysis
 import imp
 imp.reload(analysis)
@@ -15,7 +16,7 @@ from analysis import I3_GlobalPoint
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
 from analysis import peseudo_3D_intersection_adjustment
-
+from analysis import Py_2_OpenScad
 
 
 import sys
@@ -236,14 +237,37 @@ class TestPeseudo_3D_intersection_adjustment(unittest.TestCase):
     def test_eig(self):
         adju = peseudo_3D_intersection_adjustment()
         m = PhotoScan.Matrix([[504, 360, 180], [360, 360, 0], [180, 0, 720]])
-        eig_valu, eig_vec = adju.neweig(m)
+        eig_valu, eig_vec = adju.get_eigen_vel_vec(m)
+        # print(eig_vec[0])
+        # print(eig_vec[1])
+        # print(eig_vec[2])
+        # print(eig_valu)
         self.assertAlmostEqual(eig_valu[0], 910.06995, 4)
         self.assertAlmostEqual(eig_valu[1], 44.81966, 4)
         self.assertAlmostEqual(eig_valu[2], 629.11038, 4)
 
-        self.assertAlmostEqual(eig_vec[0, 0], -0.65580, 4)
-        self.assertAlmostEqual(eig_vec[0, 1], 0.64879, 4)
-        self.assertAlmostEqual(eig_vec[0, 2], 0.38600, 4)
+        self.assertAlmostEqual(eig_vec[0][0], -0.65580, 4)
+        self.assertAlmostEqual(eig_vec[0][1], 0.64879, 4)
+        self.assertAlmostEqual(eig_vec[0][2], 0.38600, 4)
+
+
+class Test_Py_2_OpenScad(unittest.TestCase):
+    def test_errorEllipse_from_eig(self):
+        adju = peseudo_3D_intersection_adjustment()
+        m = PhotoScan.Matrix([[504, 360, 180], [360, 360, 0], [180, 0, 720]])
+        m = PhotoScan.Matrix([[24.66697238419596, 11.102022651894911, 29.082023223173206],
+                              [11.10202265189491, 10.052229488742526, 14.941828405336427],
+                              [29.082023223173206, 14.941828405336427, 42.78791682803554]])
+        eig_valu, eig_vec = adju.get_eigen_vel_vec(m)
+        py2scad = Py_2_OpenScad()
+
+        scad_string = py2scad.errorEllipse_from_eig(eig_vec, eig_valu, [0, 0, 0])
+
+        ref_string = "translate([ 0.000, 0.000, 0.000])\n" + \
+                     "rotate([-7.740,-50.259,27.649])\n" + \
+                     "scale([ 8.365, 2.068, 1.806])\n" + \
+                     "sphere(r =  1.000);\n"
+        self.assertEqual(ref_string, scad_string)
 
 class TestAnalysis(unittest.TestCase):
     errorMatrix = [[1.6, 1.7],
@@ -272,7 +296,8 @@ if __name__ == '__main__':
                            TestAnalysis,
                            TestMyProject,
                            TestSVG_Photo_Representation,
-                           TestPeseudo_3D_intersection_adjustment]
+                           TestPeseudo_3D_intersection_adjustment,
+                           Test_Py_2_OpenScad]
 
     loader = unittest.TestLoader()
 

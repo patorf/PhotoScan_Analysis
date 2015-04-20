@@ -11,6 +11,8 @@ import svd
 from pysvg.builders import *
 import pysvg
 import imp
+from csg import *
+
 
 imp.reload(pysvg)
 from pysvg.builders import *
@@ -499,7 +501,7 @@ class peseudo_3D_intersection_adjustment():
 
         s, v, d = svd.svd(m_list)
         eigenvalues = v
-        eigenvector = PhotoScan.Matrix(s)
+        eigenvector = s  # PhotoScan.Matrix(s)
 
         # sorted_indeces =sorted(range(len(eigenvalues)), key=lambda k: v[k])
 
@@ -729,6 +731,52 @@ class peseudo_3D_intersection_adjustment():
 
         f.close()
         print('output finish')
+
+
+class Py_2_OpenScad():
+    def errorEllipse_from_eig(self, eigvector, eigvalue, position, factor=1):
+
+        """
+
+        :param eigvector: 3x3 list each column is a eigenvector
+        :param eigvalue: 1x3 list of eigenvalue. each corrensponding to the column in eigenvector
+        :param position: 1x3 list of x,y,z coordinates
+        :param factor: the scale factor
+        :tpye eigvector: list of float
+        :type eigvalue: list of float
+        :type position: list of float
+        :type factor: float
+        """
+        sorted_indeces_descanding = sorted(range(len(eigvalue)), key=lambda k: eigvalue[k])[::-1]
+        sorted_eigenvalue = []
+        for sort_i in sorted_indeces_descanding:
+            sorted_eigenvalue.append(eigvalue[sort_i])
+        v1 = []
+        v2 = []
+        v3 = []
+
+        for row in eigvector:
+            v1.append(row[sorted_indeces_descanding[0]])
+            v2.append(row[sorted_indeces_descanding[1]])
+            v3.append(row[sorted_indeces_descanding[2]])
+
+        roh = 180 / math.pi
+        gamma = math.atan(v1[1] / v1[0]) * roh
+        len_x_ = math.sqrt(v1[0] ** 2 + v1[1] ** 2)
+        beta = math.atan(v1[2] / len_x_) * roh
+        alpha = -math.atan(v3[1] / v3[2]) * roh
+
+        scale = [sqrt(sorted_eigenvalue[0]), sqrt(sorted_eigenvalue[1]), sqrt(sorted_eigenvalue[2])]
+
+        scad_string = ""
+        scad_string += "translate([{:6.3f},{:6.3f},{:6.3f}])\n".format(position[0], position[1], position[2])
+        scad_string += "rotate([{:6.3f},{:6.3f},{:6.3f}])\n".format(alpha, beta, gamma)
+        scad_string += "scale([{:6.3f},{:6.3f},{:6.3f}])\n".format(scale[0], scale[1], scale[2])
+        scad_string += "sphere(r = {:6.3f});\n".format(factor)
+
+        return scad_string
+
+
 
 
 class SVG_Photo_Representation():
