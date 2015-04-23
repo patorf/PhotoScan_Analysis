@@ -111,7 +111,8 @@ class I3_Photo(object):
 
 
 class I3_Point():
-    def __init__(self, projection_I=None,
+    def __init__(self,
+                 projection_I=None,
                  measurement_I=None,
                  track_id=None,
                  coord_W=None,
@@ -122,6 +123,7 @@ class I3_Point():
         self.measurement_I = measurement_I
         self.track_id = track_id
         self.coord_W = coord_W
+
         self.coord_C = coord_C
         self.error_W = error_W
         self.measurement_C = None
@@ -182,17 +184,16 @@ class I3_Project():
         """:type: list[I3_Photo]"""
 
         # self.points = defaultdict(I3_GlobalPoint)
-        self.point_photo_reference = None
+        self.point_photo_reference = {}
+        """:type: dict[int, list[I3_Photo]]"""
+
         self.path = PhotoScan.app.document.path
         self.directory = "\\".join(self.path.split('\\')[:-1])
 
     def get_point_photos_reference(self):
-        """
 
-        :rtype : dict
-        """
         if not self.point_photo_reference:
-            points_photo_dict = {}
+            points_photo_dict = self.point_photo_reference
             for photo in self.photos:
                 for point in photo.points:
                     if point.track_id in points_photo_dict:
@@ -200,14 +201,24 @@ class I3_Project():
                     else:
                         points_photo_dict[point.track_id] = []
                         points_photo_dict[point.track_id].append(photo)
-            self.point_photo_reference = points_photo_dict
+
         return self.point_photo_reference
 
-    def export_for_octave(self, filename='octave_export.txt'):
+    def export_for_OpenScad(self, filename='openScad'):
+        filename += ".scad"
         adjustment = peseudo_3D_intersection_adjustment(self.get_point_photos_reference())
-        filename = self.directory + '\\' + filename
 
-        adjustment.export_no_xyz_cov(filename)
+        ellipsoid_parameter_list = adjustment.get_all_for_ellipsoid()
+        output_str = "factor = 0.051;\n"
+        for ellipsoid_parameter in ellipsoid_parameter_list:
+            eig_val, eig_vec, pos = ellipsoid_parameter
+            output_str += Py_2_OpenScad.errorEllipse_from_eig(eig_vec, eig_val, pos)
+
+        f = open(self.directory + '\\' + filename, 'w')
+        f.write(output_str)
+        f.close()
+        print('save file ', filename, ' to: ', self.directory)
+
 
     def build_global_point_error(self):
 
@@ -238,6 +249,7 @@ class I3_Project():
 
         # for point in list(self.points.values())[99].points:
         # pass
+
 
     # not needet by this point
     def get_RMS_4_all_photos(self, photos=None):
@@ -486,10 +498,23 @@ class peseudo_3D_intersection_adjustment():
     cam_Z = 'Z_0'
 
     def __init__(self, point_with_reference=None):
+
+        """
+
+        :type point_with_reference:  dict[int, list[I3_Photo]]
+        """
         self.points = point_with_reference
         self.points_pos = {}
 
-    def get_eigen_vel_vec(self, m):
+    @staticmethod
+    def get_eigen_vel_vec(m):
+        """
+        return a tuble of eigenvalue and eigenvectro for a given Matrix using SVD
+        the eigenvalue are not sorted!!!
+
+        :param m: PhotoScan.Matrix
+        :rtype : (list[float],list[list[float]])
+        """
         rows, cols = m.size
         m_list = []
 
@@ -507,7 +532,35 @@ class peseudo_3D_intersection_adjustment():
 
         return eigenvalues, eigenvector
 
+    def get_all_for_ellipsoid(self, track_id=None):
+        """
+        returns a list of a tuple of Eigenvalue, Eigenvector and Position for
+        a track_id. if no id is passed it returns a list of all points
 
+        :type track_id: int
+        :param track_id: track_id or None. i
+        :rtype : (list[float],list[list[float]],list[float])
+        """
+
+        if track_id:
+            list_of_track_ids = [track_id]
+        else:
+            list_of_track_ids = self.points.keys()
+
+        return_list = []
+
+        for track_id in list_of_track_ids:
+            cov = self.get_cov_for_point(track_id)
+
+            eig_val, eig_vec = self.get_eigen_vel_vec(cov)
+            pos_vector = None
+            for point in self.points[track_id][0].points:
+                if point.track_id == track_id:
+                    pos_vector = point.coord_W
+            # pos_vector = self.points[track_id][0].points[track_id].coord_W
+            pos = [pos_vector.x, pos_vector.y, pos_vector.z]
+            return_list.append((eig_val, eig_vec, pos))
+        return return_list
 
 
     def get_measurment_vector_4_track_id(self, point_photo_reference, track_id):
@@ -527,13 +580,20 @@ class peseudo_3D_intersection_adjustment():
         return track_id, measurement_list
 
     def get_cov_for_point(self, track_id):
+        """
+
+
+        object
+        :param track_id: id of a 3D Point
+        :return: 3x3 Cov-Matrix
+        :rtype : list[list[float]]
+        """
         jacobian_matrix, X_vector, L_vector = self.get_jacobian(track_id)
 
         A = jacobian_matrix
         P = self.get_P_matrix(L_vector)
         N = A.t() * P * A
         Qxx = N.inv()
-
 
         return Qxx
 
@@ -734,15 +794,19 @@ class peseudo_3D_intersection_adjustment():
 
 
 class Py_2_OpenScad():
-    def errorEllipse_from_eig(self, eigvector, eigvalue, position, factor=1):
+    @classmethod
+    def errorEllipse_from_eig(self, eigvector, eigvalue, position, factor=2):
 
         """
 
+
+        :rtype : str
+        :return : scad_string
         :param eigvector: 3x3 list each column is a eigenvector
         :param eigvalue: 1x3 list of eigenvalue. each corrensponding to the column in eigenvector
         :param position: 1x3 list of x,y,z coordinates
         :param factor: the scale factor
-        :tpye eigvector: list of float
+        :type eigvector: list of float
         :type eigvalue: list of float
         :type position: list of float
         :type factor: float
@@ -766,17 +830,18 @@ class Py_2_OpenScad():
         beta = math.atan(v1[2] / len_x_) * roh
         alpha = -math.atan(v3[1] / v3[2]) * roh
 
-        scale = [sqrt(sorted_eigenvalue[0]), sqrt(sorted_eigenvalue[1]), sqrt(sorted_eigenvalue[2])]
+        scale = list(
+            map(lambda x: x / factor,
+                [sqrt(sorted_eigenvalue[0]), sqrt(sorted_eigenvalue[1]), sqrt(sorted_eigenvalue[2])]))
 
-        scad_string = ""
-        scad_string += "translate([{:6.3f},{:6.3f},{:6.3f}])\n".format(position[0], position[1], position[2])
-        scad_string += "rotate([{:6.3f},{:6.3f},{:6.3f}])\n".format(alpha, beta, gamma)
-        scad_string += "scale([{:6.3f},{:6.3f},{:6.3f}])\n".format(scale[0], scale[1], scale[2])
-        scad_string += "sphere(r = {:6.3f});\n".format(factor)
+        scad_string = "render(){"
+        scad_string += "translate([{:6.3f},{:6.3f},{:6.3f}])".format(position[0], position[1], position[2])
+        scad_string += "rotate([{:6.3f},{:6.3f},{:6.3f}])".format(alpha, beta, gamma)
+        scad_string += "scale([{:6.3f},{:6.3f},{:6.3f}]*factor)".format(scale[0], scale[1], scale[2])
+        scad_string += "sphere(r = {:6.3f},$fn=15);}}\n".format(factor)
+        # scad_string += "import(\"C:\\\\Users\\\\philipp.atorf.INTERN\\\\Downloads\\\\sphere.stl\");}}\n".format(factor)
 
         return scad_string
-
-
 
 
 class SVG_Photo_Representation():
@@ -1084,12 +1149,13 @@ def calc_Cov_4_allPoints(point_list):
 
     for track_id, error in point_list.items():
         if len(error) > 3:
-            cov = calc_Cov_4_Point(error)
-            covs[track_id] = cov
+            pass
+            # cov = calc_Cov_4_Point(error)
+            # covs[track_id] = cov
         else:
             pass
 
-    return covs
+    return  # covs
 
 
 def creatExportList(points, covs_dict):
@@ -1099,9 +1165,6 @@ def creatExportList(points, covs_dict):
             export_points.append(
                 [point.track_id, point.coord, covs_dict[point.track_id]])
     return export_points
-
-
-
 
 
 def export_no_xyz_std(points, covs_Dict):
@@ -1148,16 +1211,16 @@ if __name__ == '__main__':
     project.calc_cov_for_all_points()
     project.print_report()
 
-    project.export_for_octave()
+    project.export_for_OpenScad()
 
     # points_reference = project.get_point_photos_reference()
     # for key,value in points_reference.items():
-    #   if len(value)<3:
-    #      print(key)
+    # if len(value)<3:
+    # print(key)
     # print(points_reference)
     # adjustment = peseudo_3D_intersection_adjustment(points_reference)
     # adjustment.get_jacobian(points_reference, 19101)
-    #adjustment.get_jacobian( list(points_reference.keys())[1000])
+    # adjustment.get_jacobian( list(points_reference.keys())[1000])
     # Qxx = adjustment.get_cov_for_point(list(points_reference.keys())[200])
     # print(Qxx)
     # project.create_project_SVG()
