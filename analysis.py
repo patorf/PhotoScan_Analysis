@@ -1,4 +1,6 @@
 import copy
+import os
+import re
 
 __author__ = 'philipp.atorf'
 
@@ -842,6 +844,32 @@ class Py_2_OpenScad():
         # scad_string += "import(\"C:\\\\Users\\\\philipp.atorf.INTERN\\\\Downloads\\\\sphere.stl\");}}\n".format(factor)
 
         return scad_string
+
+
+class STL_Handler():
+    def __init__(self):
+        self.triangle = []
+
+    def importSTL(self, fname="sp_exp.stl"):
+        __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        with open(__location__ + '\\' + fname, 'r') as f:
+            # content = f.readlines()
+            content = f.read().splitlines()
+            for line in content:
+                if "outer loop" in line:
+                    triple = []
+
+                vetex_pattern = 'vertex\s(\S*)\s(\S*)\s(\S*)'
+
+                match = re.search(vetex_pattern, line)
+                if match:
+                    vertex_x = float(match.group(1))
+                    vertex_y = float(match.group(2))
+                    vertex_z = float(match.group(3))
+                    vertex_photoscan_vector = PhotoScan.Vector((vertex_x, vertex_y, vertex_z))
+                    triple.append(vertex_photoscan_vector)
+                if "endloop" in line:
+                    self.triangle.append(triple)
 
 
 class SVG_Photo_Representation():
