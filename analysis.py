@@ -1,6 +1,7 @@
 import copy
 import os
 import re
+from STL_Writer import Binary_STL_Writer
 
 __author__ = 'philipp.atorf'
 
@@ -221,6 +222,38 @@ class I3_Project():
         f.close()
         print('save file ', filename, ' to: ', self.directory)
 
+    def export_STL(self, filename='stl_export.stl', binary=True, factor=0.1):
+        print('start output: ' + filename)
+
+        adjustment = peseudo_3D_intersection_adjustment(self.get_point_photos_reference())
+
+        ellipsoid_parameter_list = adjustment.get_all_for_ellipsoid()
+        output_str = "solid Ellipsoids\n"
+
+        stl_handler = STL_Handler()
+
+        if not binary:
+
+            for ellipsoid_parameter in ellipsoid_parameter_list:
+                eig_val, eig_vec, pos = ellipsoid_parameter
+                output_str += stl_handler.create_ellipsoid_stl(eig_vec, eig_val, pos, factor, False)
+                ## output_str += Py_2_OpenScad.errorEllipse_from_eig(eig_vec, eig_val, pos)
+            output_str += "endsolid Ellipsoids"
+            f = open(self.directory + '\\' + filename, 'w')
+            f.write(output_str)
+            f.close()
+            print('save file ', filename, ' to: ', self.directory)
+
+        else:
+            data = []
+            for ellipsoid_parameter in ellipsoid_parameter_list:
+                eig_val, eig_vec, pos = ellipsoid_parameter
+                data.extend(stl_handler.create_ellipsoid_stl(eig_vec, eig_val, pos, factor, True))
+            with open(self.directory + '\\' + filename, 'wb') as fp:
+                writer = Binary_STL_Writer(fp)
+                writer.add_faces(data)
+                writer.close()
+                print('save bin file ', filename, ' to: ', self.directory)
 
     def build_global_point_error(self):
 
@@ -797,7 +830,7 @@ class peseudo_3D_intersection_adjustment():
 
 class Py_2_OpenScad():
     @classmethod
-    def errorEllipse_from_eig(self, eigvector, eigvalue, position, factor=2):
+    def errorEllipse_from_eig(self, eigvector, eigvalue, position, factor=1):
 
         """
 
@@ -849,6 +882,9 @@ class Py_2_OpenScad():
 class STL_Handler():
     def __init__(self):
         self.triangle = []
+        self.importSTL()
+        self.farcet_count = 0
+
 
     def importSTL(self, fname="sp_exp.stl"):
         __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -870,6 +906,85 @@ class STL_Handler():
                     triple.append(vertex_photoscan_vector)
                 if "endloop" in line:
                     self.triangle.append(triple)
+
+    def create_ellipsoid_stl(self, eigvector, eigvalue, position, factor=1, binary=True):
+        sorted_indeces_descanding = sorted(range(len(eigvalue)), key=lambda k: eigvalue[k])[::-1]
+        sorted_eigenvalue = []
+        for sort_i in sorted_indeces_descanding:
+            sorted_eigenvalue.append(eigvalue[sort_i])
+        v1 = []
+        v2 = []
+        v3 = []
+
+        for row in eigvector:
+            v1.append(row[sorted_indeces_descanding[0]])
+            v2.append(row[sorted_indeces_descanding[1]])
+            v3.append(row[sorted_indeces_descanding[2]])
+
+        roh = 1  # 180 / math.pi
+        gamma = math.atan(v1[1] / v1[0]) * roh
+        len_x_ = math.sqrt(v1[0] ** 2 + v1[1] ** 2)
+        beta = math.atan(v1[2] / len_x_) * roh
+        alpha = -math.atan(v3[1] / v3[2]) * roh
+
+        scale = list(
+            map(lambda x: x * factor,
+                [sqrt(sorted_eigenvalue[0]), sqrt(sorted_eigenvalue[1]), sqrt(sorted_eigenvalue[2])]))
+
+        scale_matrix = PhotoScan.Matrix.diag(scale
+                                             )
+        rot_x = PhotoScan.Matrix([[1, 0, 0],
+                                  [0, math.cos(alpha), -math.sin(alpha)],
+                                  [0, math.sin(alpha), math.cos(alpha)]])
+        rot_y = PhotoScan.Matrix([[math.cos(beta), 0, math.sin(beta)],
+                                  [0, 1, 0],
+                                  [-math.sin(beta), 0, math.cos(beta)]])
+
+        rot_z = PhotoScan.Matrix([[math.cos(gamma), -math.sin(gamma), 0],
+                                  [math.sin(gamma), math.cos(gamma), 0],
+                                  [0, 0, 1]])
+
+        rot_all = rot_z * rot_y * rot_x
+
+        rot_and_scale_matrix = rot_all * scale_matrix
+        translation = PhotoScan.Vector(position)
+
+        ellisoid_data = None
+        if not binary:
+            ellisoid_data = ""
+        else:
+            ellisoid_data = []
+        for triangle in self.triangle:
+            transformed_triple = []
+            ellisoid_data.append([])
+            for vertex in triangle:
+                newvertex = translation + rot_and_scale_matrix * vertex
+                transformed_triple.append(newvertex)
+                ellisoid_data[-1].append((newvertex.x, newvertex.y, newvertex.z))
+            if not binary:
+                ellisoid_data += self.create_vertex_string(transformed_triple)
+                # else:
+                # ellisoid_data.append([transformed_triple.x,transformed_triple.y,transformed_triple.z])
+
+        return ellisoid_data
+
+
+    @staticmethod
+    def create_vertex_string(vertex_triple):
+        vertex_string = "facet normal 0 0 0\n" + \
+                        "outer loop\n"
+        for vertex in vertex_triple:
+            vertex_string += "vertex {:6.3f} {:6.3f} {:6.3f}\n".format(vertex.x, vertex.y, vertex.z)
+        vertex_string += "endloop\nendfacet\n"
+        return vertex_string
+
+    def create_vertex_binary(self, vertex_triple):
+        self.farcet_count += 1
+        data = [0, 0, 0]
+        for vertex in vertex_triple:
+            data.append(vertex.x, vertex.y, vertex.z)
+        data.append(0)
+        return data
 
 
 class SVG_Photo_Representation():
@@ -1239,8 +1354,8 @@ if __name__ == '__main__':
     project.calc_cov_for_all_points()
     project.print_report()
 
-    project.export_for_OpenScad()
-
+    # project.export_for_OpenScad()
+    project.export_STL(binary=True, factor=0.05)
     # points_reference = project.get_point_photos_reference()
     # for key,value in points_reference.items():
     # if len(value)<3:

@@ -1,3 +1,5 @@
+import os
+
 __author__ = 'philipp.atorf'
 
 from analysis import I3_Point
@@ -261,7 +263,15 @@ class Test_Py_2_OpenScad(unittest.TestCase):
                      "rotate([-7.740,-50.259,27.649])" + \
                      "scale([ 8.365, 2.068, 1.806])" + \
                      "sphere(r =  1.000)};\n"
+
         self.assertTrue(True)
+
+        path = os.path.dirname(os.path.realpath(__file__))
+
+        f = open(path + '\\scad_ell.scad', 'w')
+        f.write(scad_string)
+        f.close()
+
         # self.assertEqual(ref_string, scad_string)
 
 
@@ -295,6 +305,31 @@ class Test_STLHeandler(unittest.TestCase):
         self.assertEqual(0.0, stl_heandler.triangle[-1][2].x)
         self.assertEqual(0.38823, stl_heandler.triangle[-1][2].y)
         self.assertEqual(1.44889, stl_heandler.triangle[-1][2].z)
+
+    def test_create_ellipsoid_stl(self):
+        adju = peseudo_3D_intersection_adjustment()
+        m = PhotoScan.Matrix([[504, 360, 180], [360, 360, 0], [180, 0, 720]])
+        m = PhotoScan.Matrix([[24.66697238419596, 11.102022651894911, 29.082023223173206],
+                              [11.10202265189491, 10.052229488742526, 14.941828405336427],
+                              [29.082023223173206, 14.941828405336427, 42.78791682803554]])
+
+        eig_valu, eig_vec = adju.get_eigen_vel_vec(m)
+
+        stl_handler = STL_Handler()
+        stl_handler.importSTL()
+        ellipsoid_stl = "solid OpenSCAD_Model\n"
+
+        ellipsoid_stl += stl_handler.create_ellipsoid_stl(eig_vec, eig_valu, [10, 0, 0], 1, False)
+
+        self.assertEqual('vertex 11.997  0.635 -1.716', ellipsoid_stl.splitlines()[3])
+
+        ellipsoid_stl += "endsolid OpenSCAD_Model"
+
+        path = os.path.dirname(os.path.realpath(__file__))
+
+        f = open(path + '\\stl_ell.stl', 'w')
+        f.write(ellipsoid_stl)
+        f.close()
 
 
 if __name__ == '__main__':
