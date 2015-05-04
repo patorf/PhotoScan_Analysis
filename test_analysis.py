@@ -320,7 +320,7 @@ class Test_STLHeandler(unittest.TestCase):
         ellipsoid_stl = "solid OpenSCAD_Model\n"
 
         ellipsoid_stl += stl_handler.create_ellipsoid_stl(eig_vec, eig_valu, [10, 0, 0], 1, False)
-
+        print(ellipsoid_stl)
         self.assertEqual('vertex 11.997  0.635 -1.716', ellipsoid_stl.splitlines()[3])
 
         ellipsoid_stl += "endsolid OpenSCAD_Model"

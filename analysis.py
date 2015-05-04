@@ -1,6 +1,7 @@
 import copy
 import os
 import re
+import sys
 from STL_Writer import Binary_STL_Writer
 
 __author__ = 'philipp.atorf'
@@ -223,7 +224,7 @@ class I3_Project():
         print('save file ', filename, ' to: ', self.directory)
 
     def export_STL(self, filename='stl_export.stl', binary=True, factor=0.1):
-        print('start output: ' + filename)
+        print('start output STL-File with factor {:4.2f}: '.format(factor) + filename)
 
         adjustment = peseudo_3D_intersection_adjustment(self.get_point_photos_reference())
 
@@ -410,15 +411,11 @@ class I3_Project():
         print('save file ', filename, ' to: ', self.directory)
 
 
-    def create_project_SVG(self):
+    def create_project_SVG(self, error_factor=40, cols=20):
 
         filename = 'imageMeasurements.svg'
 
         s = svg()
-        i = 0
-        totol_height = 0
-        error_factor = 40
-        cols = 20
 
         summery_SVG = SVG_Photo_Representation(self.photos)
         summery_SVG.point_radius = 1
@@ -509,7 +506,7 @@ class L_vector_element():
         self.track_id = track_id
         self.value_type = value_type
         self.value = value
-        self.sigma = sigma
+        self.sigma = sigma  # varianz
 
     def __str__(self):
         return "{:s} track_id:{:d} value_type:{:s} value:{:.9f} sigam:{:.9f} ".format(self.cam_id,
@@ -626,7 +623,7 @@ class peseudo_3D_intersection_adjustment():
         jacobian_matrix, X_vector, L_vector = self.get_jacobian(track_id)
 
         A = jacobian_matrix
-        P = self.get_P_matrix(L_vector)
+        P = self.get_P_matrix(L_vector, 0.1)
         N = A.t() * P * A
         Qxx = N.inv()
 
@@ -954,15 +951,20 @@ class STL_Handler():
             ellisoid_data = ""
         else:
             ellisoid_data = []
+
         for triangle in self.triangle:
             transformed_triple = []
-            ellisoid_data.append([])
-            for vertex in triangle:
-                newvertex = translation + rot_and_scale_matrix * vertex
-                transformed_triple.append(newvertex)
-                ellisoid_data[-1].append((newvertex.x, newvertex.y, newvertex.z))
-            if not binary:
-                ellisoid_data += self.create_vertex_string(transformed_triple)
+            if binary:
+                ellisoid_data.append([])
+                for vertex in triangle:
+                    newvertex = translation + rot_and_scale_matrix * vertex
+                    transformed_triple.append(newvertex)
+                    ellisoid_data[-1].append((newvertex.x, newvertex.y, newvertex.z))
+            else:
+                for vertex in triangle:
+                    newvertex = translation + rot_and_scale_matrix * vertex
+                    transformed_triple.append(newvertex)
+                    ellisoid_data += self.create_vertex_string(transformed_triple)
                 # else:
                 # ellisoid_data.append([transformed_triple.x,transformed_triple.y,transformed_triple.z])
 
@@ -1335,6 +1337,25 @@ def export_no_xyz_std(points, covs_Dict):
 
 
 if __name__ == '__main__':
+
+    doc = PhotoScan.app.document
+    chunk = doc.chunk
+    project = I3_Project()
+    total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
+    # project.build_global_point_error()
+    project.calc_cov_for_all_points()
+    project.print_report()
+    project.create_project_SVG()
+    project.export_STL(binary=True, factor=(0.05 / 10))
+    for arg in sys.argv:
+
+        if arg is not "no3d":
+            pass
+
+
+
+
+
     testPointError = [PhotoScan.Vector((1, 2, 1.4)), PhotoScan.Vector(
         (-1.2, 1, 2.3)), PhotoScan.Vector((-1.4, 2, 3))]
     # print (calc_Cov_4_Point(testPointError))
@@ -1345,17 +1366,16 @@ if __name__ == '__main__':
     pointErrors_W = defaultdict(list)
     pointErrors_I = defaultdict(list)
 
-    doc = PhotoScan.app.document
-    chunk = doc.chunk
+
 
     project = I3_Project()
     total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
     # project.build_global_point_error()
     project.calc_cov_for_all_points()
     project.print_report()
-
+    # project.create_project_SVG()
     # project.export_for_OpenScad()
-    project.export_STL(binary=True, factor=0.05)
+    # project.export_STL(binary=True, factor=(0.05/10))
     # points_reference = project.get_point_photos_reference()
     # for key,value in points_reference.items():
     # if len(value)<3:
