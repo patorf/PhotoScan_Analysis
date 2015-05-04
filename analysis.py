@@ -58,13 +58,12 @@ class I3_Photo(object):
             # sigma_x = math.sqrt(error_quad_sum.x / count)
             # sigma_y = math.sqrt(error_quad_sum.y / count)
 
-            cov = calc_Cov_from_ErrorMatrix(error_matrix)
+            cov = calc_cov_from_error_matrix(error_matrix)
             sigma_x = math.sqrt(cov[0, 0])
             sigma_y = math.sqrt(cov[1, 1])
             # return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
             self.sigma = PhotoScan.Vector([sigma_x, sigma_y])
         return self.sigma
-
 
     def get_max(self):
         error_matrix = self.get_error_matrix()
@@ -82,10 +81,8 @@ class I3_Photo(object):
             error_matrix.append([point.error_I.x, point.error_I.y])
         return error_matrix
 
-
     @classmethod
     def print_report_header(cls):
-
 
         r_str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n'.format('Cam #',
                                                                                'Projections',
@@ -133,7 +130,6 @@ class I3_Point():
         self.measurement_C = None
         self.sigma_I = None
 
-
     def project_sigma_2_W(self, sigma_I=None):
         if not sigma_I:
             sigma_I = self.sigma_I
@@ -142,7 +138,6 @@ class I3_Point():
 
         trim_faktor = sigma_W / self.error_W.norm()
         return self.error_W * trim_faktor
-
 
     @property
     def error_I(self):
@@ -277,7 +272,6 @@ class I3_Project():
 
                 self.points[point.track_id].points.append(point)
 
-
     def calc_cov_for_all_points(self):
         pass
         # for trackid, point in self.points.items():
@@ -285,7 +279,6 @@ class I3_Project():
 
         # for point in list(self.points.values())[99].points:
         # pass
-
 
     # not needet by this point
     def get_RMS_4_all_photos(self, photos=None):
@@ -304,9 +297,8 @@ class I3_Project():
 
         return rms_x, rms_y
 
-
     def calc_reprojection(self, chunk):
-        allPhotos = self.photos
+        all_photos = self.photos
         point_cloud = chunk.point_cloud
 
         points = point_cloud.points
@@ -324,7 +316,7 @@ class I3_Project():
 
             this_photo = I3_Photo(camera.label)
             this_photo.photoscanCamera = camera
-            allPhotos.append(this_photo)
+            all_photos.append(this_photo)
 
             T = camera.transform.inv()
             calib = camera.sensor.calibration
@@ -347,11 +339,9 @@ class I3_Project():
 
                     measurement_I = proj.coord
                     measurement_C = calib.unproject(measurement_I)
-                    error_I = calib.error(point_C, measurement_I)  # error = projection - measurement
-                    # error_I_length = error_I.norm()
+                    error_I = calib.error(point_C, measurement_I)
 
-                    error_C = point_C - measurement_C * point_C.z
-                    # error_C_length = error_C.norm()
+                    # error_C = point_C - measurement_C * point_C.z
 
                     measurement_W = camera.transform.mulp(measurement_C * point_C.z)
                     error_W = point_W - measurement_W
@@ -368,12 +358,7 @@ class I3_Project():
                         point.coord_W = point_W
                         point.error_W = error_W
                         point.measurement_C = measurement_C
-                        # print('ratio',point.ratio_W_2_I)
-                        # print('disttocenter',point_C.norm())
-                        # print('error_W', point.error_W)
-                        # print('error_I', point.error_I)
-                        # print('--------------W', point.coord_C)
-                    # [-0.25211071968078613, -0.04763663187623024, 5.12844181060791])
+
                     dist = error_I.norm() ** 2
                     err_sum += dist
                     num += 1
@@ -388,7 +373,7 @@ class I3_Project():
 
         rep_avg = sigma
 
-        return rep_avg, photo_avg, allPhotos
+        return rep_avg, photo_avg, all_photos
 
     def print_report(self):
         filename = 'report.txt'
@@ -409,7 +394,6 @@ class I3_Project():
         f.write(r_str)
         f.close()
         print('save file ', filename, ' to: ', self.directory)
-
 
     def create_project_SVG(self, error_factor=40, cols=20):
 
@@ -594,8 +578,8 @@ class peseudo_3D_intersection_adjustment():
             return_list.append((eig_val, eig_vec, pos))
         return return_list
 
-
-    def get_measurment_vector_4_track_id(self, point_photo_reference, track_id):
+    @staticmethod
+    def get_measurment_vector_4_track_id(point_photo_reference, track_id):
         """
 
         :type photos: list of I3_Photo
@@ -629,7 +613,8 @@ class peseudo_3D_intersection_adjustment():
 
         return Qxx
 
-    def get_P_matrix(self, L_vector, sigma0=1):
+    @staticmethod
+    def get_P_matrix(L_vector, sigma0=1):
         """
 
         :type L_vector: list of L_vector_element
@@ -646,9 +631,8 @@ class peseudo_3D_intersection_adjustment():
         P = Q_ll
         return P
 
-
     def get_jacobian(self, track_id, point_photo_reference=None):
-        if point_photo_reference == None:
+        if point_photo_reference is None:
             point_photo_reference = self.points
         photos = point_photo_reference[track_id]
         X_vector = []
@@ -684,7 +668,6 @@ class peseudo_3D_intersection_adjustment():
 
             # point = photo.points[0]
 
-
             for point in photo.points:
                 if point.track_id == track_id:
                     self.points_pos[track_id] = point.coord_W
@@ -714,7 +697,6 @@ class peseudo_3D_intersection_adjustment():
             jacobian.extend(jacobian_row)
         jacobian_matrix = PhotoScan.Matrix(jacobian)
         return jacobian_matrix, X_vector, L_vectro
-
 
     def get_jacobian_row_for_point(self, X_vector, L_vector, X_used):
         """
@@ -766,7 +748,6 @@ class peseudo_3D_intersection_adjustment():
             if L.value_type == L_vector_element.value_type_x:
                 for i, X in enumerate(X_used):
 
-
                     if X == self.point_X:
                         # df(x)/dX
                         row_x[i] = -(z / N ** 2) * (R[0, 2] * k_x - R[0, 0] * N)
@@ -774,7 +755,6 @@ class peseudo_3D_intersection_adjustment():
                         row_x[i] = -(z / N ** 2) * (R[1, 2] * k_x - R[1, 0] * N)
                     if X == self.point_Z:
                         row_x[i] = -(z / N ** 2) * (R[2, 2] * k_x - R[2, 0] * N)
-
 
             elif L.value_type == L_vector_element.value_type_y:
                 for i, X in enumerate(X_used):
@@ -803,9 +783,6 @@ class peseudo_3D_intersection_adjustment():
 
             # doc.path  # C:\User....\project.psz
 
-
-
-
             output = ''
             output += '%i;' % track_id
             output += '%15.12e;%15.12e;%15.12e\n' % (
@@ -827,7 +804,7 @@ class peseudo_3D_intersection_adjustment():
 
 class Py_2_OpenScad():
     @classmethod
-    def errorEllipse_from_eig(self, eigvector, eigvalue, position, factor=1):
+    def errorEllipse_from_eig(cls, eigvector, eigvalue, position, factor=1):
 
         """
 
@@ -882,10 +859,9 @@ class STL_Handler():
         self.importSTL()
         self.farcet_count = 0
 
-
     def importSTL(self, fname="sphere_aus_meshlab.stl"):
         __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-        print(__location__)
+        self.triangle = []
         with open(__location__ + '\\' + fname, 'r') as f:
             # content = f.readlines()
             content = f.read().splitlines()
@@ -904,7 +880,6 @@ class STL_Handler():
                     triple.append(vertex_photoscan_vector)
                 if "endloop" in line:
                     self.triangle.append(triple)
-
 
     def create_ellipsoid_stl(self, eigvector, eigvalue, position, factor=1, binary=True):
         sorted_indeces_descanding = sorted(range(len(eigvalue)), key=lambda k: eigvalue[k])[::-1]
@@ -972,7 +947,6 @@ class STL_Handler():
 
         return ellisoid_data
 
-
     @staticmethod
     def create_vertex_string(vertex_triple):
         vertex_string = "facet normal 0 0 0\n" + \
@@ -981,14 +955,6 @@ class STL_Handler():
             vertex_string += "vertex {:6.3f} {:6.3f} {:6.3f}\n".format(vertex.x, vertex.y, vertex.z)
         vertex_string += "endloop\nendfacet\n"
         return vertex_string
-
-    def create_vertex_binary(self, vertex_triple):
-        self.farcet_count += 1
-        data = [0, 0, 0]
-        for vertex in vertex_triple:
-            data.append(vertex.x, vertex.y, vertex.z)
-        data.append(0)
-        return data
 
 
 class SVG_Photo_Representation():
@@ -1021,7 +987,6 @@ class SVG_Photo_Representation():
             points.extend(photo.points)
         return points
 
-
     def set_count_legend(self, colormap, min_max):
         group = g()
         height = 0
@@ -1051,7 +1016,6 @@ class SVG_Photo_Representation():
 
         return group
 
-
     def get_raster_legend(self):
         return self.count_legend
 
@@ -1061,14 +1025,13 @@ class SVG_Photo_Representation():
         label = text("All Photos Error", *self.labelpos)
         if (len(self.i3Photo) == 1):
             label = text(self.i3Photo[0].print_report_line(), *self.labelpos)
-        textStyle = StyleBuilder()
-        textStyle.setFontSize('16')
-        label.set_style(textStyle.getStyle())
+        text_style = StyleBuilder()
+        text_style.setFontSize('16')
+        label.set_style(text_style.getStyle())
 
         return label
 
     def get_raw_error_vector_svg(self, as_raster=False, factor=40, cols=22):
-
 
         shape_builder = ShapeBuilder()
         photo_group = g()
@@ -1095,15 +1058,14 @@ class SVG_Photo_Representation():
             image_group.addElement(self.drawErrorVector(point, factor))
 
         # Image Group Translation
-        transImage = TransformBuilder()
-        transImage.setTranslation(*self.imagepos)
-        image_group.set_transform(transImage.getTransform())
+        trans_image = TransformBuilder()
+        trans_image.setTranslation(*self.imagepos)
+        image_group.set_transform(trans_image.getTransform())
 
         photo_group.addElement(image_group)
 
         total_height = self.imagepos[1] + self.svg_height
         return photo_group, total_height
-
 
     @classmethod
     def get_color_4_value(cls, min_max, val, colormap):
@@ -1124,7 +1086,6 @@ class SVG_Photo_Representation():
         for i, color in enumerate(colormap):
             cat_border.append((i + 1) * cat_size)
         return cat_border, cat_size
-
 
     def get_raster_count_svg(self, cols):
         coutn_raster, size = self.getRaster(cols)
@@ -1161,17 +1122,12 @@ class SVG_Photo_Representation():
                                                       fill=color)
                 group.addElement(count_rect)
 
-
-
-
-
         # Image Group Translation
-        transImage = TransformBuilder()
-        transImage.setTranslation(*self.imagepos)
-        group.set_transform(transImage.getTransform())
+        trans_image = TransformBuilder()
+        trans_image.setTranslation(*self.imagepos)
+        group.set_transform(trans_image.getTransform())
 
         return group
-
 
     def drawErrorVector(self, point, factor=30, ):
         """
@@ -1200,7 +1156,6 @@ class SVG_Photo_Representation():
 
     def transform_2_SVG(self, x_image, y_image):
 
-
         x_svg = x_image * self.svg_witdh / self.width
         y_svg = y_image * self.svg_witdh / self.width
 
@@ -1219,8 +1174,8 @@ class SVG_Photo_Representation():
         error_raster = [[[] for x in range(cols)] for x in range(rows)]
 
         for point in self.points:
-            i = int(point.measurement_I.y * (rows ) / height_I)
-            j = int(point.measurement_I.x * (cols ) / width_I)
+            i = int(point.measurement_I.y * (rows) / height_I)
+            j = int(point.measurement_I.x * (cols) / width_I)
             # print('floatcols', point.measurement_I.x * (cols - 1) / width_I)
             # print('floatrows', point.measurement_I.y * (rows - 1) / height_I)
 
@@ -1261,7 +1216,7 @@ class SVG_Photo_Representation():
         return new_points, size
 
 
-def trans_error_image_2_camera(camera, point_pix, point_Camera):
+def trans_error_image_2_camera(camera, point_pix, point_camera):
     t = camera.transform
     calib = camera.sensor.calibration
     fx = calib.fx
@@ -1272,13 +1227,13 @@ def trans_error_image_2_camera(camera, point_pix, point_Camera):
     x = u / fx  # -calib.cx/fx # den hinteren term entfernen
     y = v / fy  # -calib.cy/fy
 
-    center_C = PhotoScan.Vector((0, 0, 1)) * point_Camera.z
-    point_C = PhotoScan.Vector((x, y, 1)) * point_Camera.z
+    center_C = PhotoScan.Vector((0, 0, 1)) * point_camera.z
+    point_C = PhotoScan.Vector((x, y, 1)) * point_camera.z
 
     return point_C, center_C
 
 
-def calc_Cov_from_ErrorMatrix(error_matrix):
+def calc_cov_from_error_matrix(error_matrix):
     # X_list = []
     # for error in pointError:
     # X_list.append([error.x, error.y, error.z])
@@ -1286,12 +1241,12 @@ def calc_Cov_from_ErrorMatrix(error_matrix):
     X_matrix = PhotoScan.Matrix(error_matrix)
 
     C = X_matrix.t() * X_matrix
-    C = C * (1 / (len(error_matrix) ))
+    C = C * (1 / (len(error_matrix)))
 
     return C
 
 
-def calc_Cov_4_allPoints(point_list):
+def calc_cov_4_all_points(point_list):
     covs = {}  # Key = trackid ; value = 3x3 Matrix
 
     for track_id, error in point_list.items():
@@ -1305,7 +1260,7 @@ def calc_Cov_4_allPoints(point_list):
     return  # covs
 
 
-def creatExportList(points, covs_dict):
+def creat_export_list(points, covs_dict):
     export_points = []
     for point in points:
         if covs_dict.get(point.track_id):
@@ -1315,7 +1270,7 @@ def creatExportList(points, covs_dict):
 
 
 def export_no_xyz_std(points, covs_Dict):
-    export_points = creatExportList(points, covs_Dict)
+    export_points = creat_export_list(points, covs_Dict)
     f = open(
         'C:\\Users\\philipp.atorf.INTERN\\Downloads\\building\\export_xyz.txt', 'w')
 
@@ -1356,42 +1311,40 @@ if __name__ == '__main__':
             pass
 
             # testPointError = [PhotoScan.Vector((1, 2, 1.4)), PhotoScan.Vector(
-        ##    (-1.2, 1, 2.3)), PhotoScan.Vector((-1.4, 2, 3))]
-    # print (calc_Cov_4_Point(testPointError))
+            ##    (-1.2, 1, 2.3)), PhotoScan.Vector((-1.4, 2, 3))]
+            # print (calc_Cov_4_Point(testPointError))
 
+            ### Programm Start ###
 
-    ### Programm Start ###
+            # pointErrors_W = defaultdict(list)
+            # pointErrors_I = defaultdict(list)
 
-        # pointErrors_W = defaultdict(list)
-        # pointErrors_I = defaultdict(list)
+            # project = I3_Project()
+            # total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
+            # project.build_global_point_error()
+            # project.calc_cov_for_all_points()
+            # project.print_report()
+            # project.create_project_SVG()
+            # project.export_for_OpenScad()
+            # project.export_STL(binary=True, factor=(0.05/10))
+            # points_reference = project.get_point_photos_reference()
+            # for key,value in points_reference.items():
+            # if len(value)<3:
+            # print(key)
+            # print(points_reference)
+            # adjustment = peseudo_3D_intersection_adjustment(points_reference)
+            # adjustment.get_jacobian(points_reference, 19101)
+            # adjustment.get_jacobian( list(points_reference.keys())[1000])
+            # Qxx = adjustment.get_cov_for_point(list(points_reference.keys())[200])
+            # print(Qxx)
+            # project.create_project_SVG()
+            # print(total_error)
+            # print(ind_error)
+            # print(vars(allPhotos[0].points[1]))
 
-        # project = I3_Project()
-        # total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
-    # project.build_global_point_error()
-        # project.calc_cov_for_all_points()
-        #project.print_report()
-    # project.create_project_SVG()
-    # project.export_for_OpenScad()
-    # project.export_STL(binary=True, factor=(0.05/10))
-    # points_reference = project.get_point_photos_reference()
-    # for key,value in points_reference.items():
-    # if len(value)<3:
-    # print(key)
-    # print(points_reference)
-    # adjustment = peseudo_3D_intersection_adjustment(points_reference)
-    # adjustment.get_jacobian(points_reference, 19101)
-    # adjustment.get_jacobian( list(points_reference.keys())[1000])
-    # Qxx = adjustment.get_cov_for_point(list(points_reference.keys())[200])
-    # print(Qxx)
-    # project.create_project_SVG()
-    # print(total_error)
-    # print(ind_error)
-    # print(vars(allPhotos[0].points[1]))
+            # covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
 
+            # point_cloud = chunk.point_cloud
+            # points = point_cloud.points
 
-    # covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
-
-    # point_cloud = chunk.point_cloud
-    # points = point_cloud.points
-
-    # export_No_xyz_cov(points, covs_Dict)
+            # export_No_xyz_cov(points, covs_Dict)
