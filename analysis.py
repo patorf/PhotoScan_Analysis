@@ -224,7 +224,7 @@ class I3_Project():
         print('save file ', filename, ' to: ', self.directory)
 
     def export_STL(self, filename='stl_export.stl', binary=True, factor=0.1):
-        print('start output STL-File with factor {:4.2f}: '.format(factor) + filename)
+        print('start output STL-File with factor {:8.6f}: '.format(factor) + filename)
 
         adjustment = peseudo_3D_intersection_adjustment(self.get_point_photos_reference())
 
@@ -883,8 +883,9 @@ class STL_Handler():
         self.farcet_count = 0
 
 
-    def importSTL(self, fname="sp_exp.stl"):
+    def importSTL(self, fname="sphere_aus_meshlab.stl"):
         __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        print(__location__)
         with open(__location__ + '\\' + fname, 'r') as f:
             # content = f.readlines()
             content = f.read().splitlines()
@@ -903,6 +904,7 @@ class STL_Handler():
                     triple.append(vertex_photoscan_vector)
                 if "endloop" in line:
                     self.triangle.append(triple)
+
 
     def create_ellipsoid_stl(self, eigvector, eigvalue, position, factor=1, binary=True):
         sorted_indeces_descanding = sorted(range(len(eigvalue)), key=lambda k: eigvalue[k])[::-1]
@@ -928,8 +930,8 @@ class STL_Handler():
             map(lambda x: x * factor,
                 [sqrt(sorted_eigenvalue[0]), sqrt(sorted_eigenvalue[1]), sqrt(sorted_eigenvalue[2])]))
 
-        scale_matrix = PhotoScan.Matrix.diag(scale
-                                             )
+        scale_matrix = PhotoScan.Matrix.diag(scale)
+
         rot_x = PhotoScan.Matrix([[1, 0, 0],
                                   [0, math.cos(alpha), -math.sin(alpha)],
                                   [0, math.sin(alpha), math.cos(alpha)]])
@@ -965,8 +967,8 @@ class STL_Handler():
                     newvertex = translation + rot_and_scale_matrix * vertex
                     transformed_triple.append(newvertex)
                     ellisoid_data += self.create_vertex_string(transformed_triple)
-                # else:
-                # ellisoid_data.append([transformed_triple.x,transformed_triple.y,transformed_triple.z])
+                    # else:
+                    # ellisoid_data.append([transformed_triple.x,transformed_triple.y,transformed_triple.z])
 
         return ellisoid_data
 
@@ -1346,33 +1348,28 @@ if __name__ == '__main__':
     project.calc_cov_for_all_points()
     project.print_report()
     project.create_project_SVG()
-    project.export_STL(binary=True, factor=(0.05 / 10))
+    factor = 1 / 1000
+    project.export_STL(binary=True, factor=factor)
     for arg in sys.argv:
 
         if arg is not "no3d":
             pass
 
-
-
-
-
-    testPointError = [PhotoScan.Vector((1, 2, 1.4)), PhotoScan.Vector(
-        (-1.2, 1, 2.3)), PhotoScan.Vector((-1.4, 2, 3))]
+            # testPointError = [PhotoScan.Vector((1, 2, 1.4)), PhotoScan.Vector(
+        ##    (-1.2, 1, 2.3)), PhotoScan.Vector((-1.4, 2, 3))]
     # print (calc_Cov_4_Point(testPointError))
 
 
     ### Programm Start ###
 
-    pointErrors_W = defaultdict(list)
-    pointErrors_I = defaultdict(list)
+        # pointErrors_W = defaultdict(list)
+        # pointErrors_I = defaultdict(list)
 
-
-
-    project = I3_Project()
-    total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
+        # project = I3_Project()
+        # total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
     # project.build_global_point_error()
-    project.calc_cov_for_all_points()
-    project.print_report()
+        # project.calc_cov_for_all_points()
+        #project.print_report()
     # project.create_project_SVG()
     # project.export_for_OpenScad()
     # project.export_STL(binary=True, factor=(0.05/10))
