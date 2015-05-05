@@ -4,7 +4,6 @@ __author__ = 'philipp.atorf'
 
 from analysis import I3_Point
 from analysis import I3_Photo
-from analysis import I3_GlobalPoint
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
 from analysis import peseudo_3D_intersection_adjustment
@@ -16,7 +15,6 @@ import imp
 imp.reload(analysis)
 from analysis import I3_Photo
 from analysis import I3_Point
-from analysis import I3_GlobalPoint
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
 from analysis import peseudo_3D_intersection_adjustment
@@ -34,15 +32,13 @@ import PhotoScan
 p1 = I3_Point(coord_W=PhotoScan.Vector([0.5794213274747677, 1.0299438009060218, 7.661802396272032]),
               projection_I=PhotoScan.Vector([672.8680381754943, 1508.2357157087156]),
               coord_C=PhotoScan.Vector([0.0009213739394838983, 3.56654678465967e-05, 4.941896795797742]),
-              error_W=PhotoScan.Vector([-0.000790515730769048, 0.00014052612581316737, 0.00045336436706833183]),
               measurement_I=PhotoScan.Vector([672.3115234375, 1508.2142333984375]),
-              ratio_I_2_W=604.0027888776877)
+              )
 p2 = I3_Point(coord_W=PhotoScan.Vector([0.5885454295971861, 1.0351837514683544, 7.67401271573676]),
               projection_I=PhotoScan.Vector([698.624257342221, 1582.757549644876]),
               coord_C=PhotoScan.Vector([-0.00010325672377653524, 0.000130867965612362, 4.925811420721138]),
-              error_W=PhotoScan.Vector([7.870425463041286e-05, 0.00011070577140159799, -9.663461031195197e-05]),
               measurement_I=PhotoScan.Vector([698.6868286132812, 1582.678466796875]),
-              ratio_I_2_W=604.9411311441258)
+              )
 
 
 class TestMyPhoto(unittest.TestCase):
@@ -63,16 +59,30 @@ class TestMyPhoto(unittest.TestCase):
 
 
     def test_calc_sigma(self):
-        # sigma, error_quad, count = self.photo.calc_sigma()
-        sigma = self.photo.calc_sigma()
+        sigma = self.photo.sigma
         self.assertAlmostEqual(sigma.x, 0.395994834, 6)
         self.assertAlmostEqual(sigma.y, 0.057946469, 6)
 
         # self.assertAlmostEqual(error_quad.x, 0.313623818, 6)
         #self.assertAlmostEqual(error_quad.y, 0.006715587, 6)
 
+    def test_calc_Cov_from_ErrorMatrix(self):
+        errorMatrix = [[1.6, 1.7],
+                       [0.6, 0.6],
+                       [-0.4, -0.4],
+                       [-1.4, -1.4],
+                       [-0.3, -0.4]]
+
+        cov = self.photo.calc_cov_from_error_matrix(errorMatrix)
+        var_x = cov[0, 0]
+        var_y = cov[1, 1]
+        cov_xy = cov[0, 1]
+        self.assertAlmostEqual(var_x, 1.026, 4)
+        self.assertAlmostEqual(var_y, 1.10600, 4)
+        self.assertAlmostEqual(cov_xy, 1.064, 4)
+
     def test_gestExtremError(self):
-        maxError = self.photo.get_max()
+        maxError = self.photo.get_max_error()
         self.assertAlmostEqual(maxError.x, 0.5565147, 5)
         self.assertAlmostEqual(maxError.y, 0.0790828, 5)
 
@@ -99,9 +109,10 @@ class TestMyPhoto(unittest.TestCase):
 
         cam_dummy = psCamera()
 
-        photo.photoscanCamera = cam_dummy
+        photo.photoScan_camera = cam_dummy
         # Optische Kontrolle des SVGs
         #print(photo.getPhotsSVG()[0].getXML())
+
 
     @classmethod
     def getPhotoforRasterTest(cls):
@@ -127,31 +138,20 @@ class TestMyPhoto(unittest.TestCase):
 
         cam_dummy = psCamera()
 
-        photo.photoscanCamera = cam_dummy
+        photo.photoScan_camera = cam_dummy
         return photo
 
 
 class TestMyPoint(unittest.TestCase):
-    def test_projectSigma_2_W(self):
-        sigma_I = 0.400212071  # (sigma from p1 and p2)
-        std_error_W = p1.project_sigma_2_W(sigma_I)
-        self.assertAlmostEqual(std_error_W.x, -0.0005680685, 6)
-        self.assertAlmostEqual(std_error_W.y, 0.0001009828, 6)
-        self.assertAlmostEqual(std_error_W.z, 0.0003257899, 6)
-
-        p1.sigma_I = 0.400212071
-        std_error_W = p1.project_sigma_2_W()
-        self.assertAlmostEqual(std_error_W.x, -0.0005680685, 6)
-        self.assertAlmostEqual(std_error_W.y, 0.0001009828, 6)
-        self.assertAlmostEqual(std_error_W.z, 0.0003257899, 6)
+    pass
 
 
 class TestMyProject(unittest.TestCase):
     pho1 = I3_Photo()
-    pho1.calc_sigma = lambda: PhotoScan.Vector((2, 13))
+    pho1.sigma = PhotoScan.Vector((2, 13))
 
     pho2 = I3_Photo()
-    pho2.calc_sigma = lambda: PhotoScan.Vector((5, 11))
+    pho2.sigma = PhotoScan.Vector((5, 11))
 
     project = I3_Project()
     project.photos = [pho1, pho2]
@@ -190,7 +190,7 @@ class TestSVG_Photo_Representation(unittest.TestCase):
 
         cam_dummy = psCamera()
 
-        photo.photoscanCamera = cam_dummy
+        photo.photoScan_camera = cam_dummy
         return SVG_Photo_Representation([photo], 700)
 
     def test_get_raw_error_vector_svg(self):
@@ -275,28 +275,13 @@ class Test_Py_2_OpenScad(unittest.TestCase):
         # self.assertEqual(ref_string, scad_string)
 
 
-class TestAnalysis(unittest.TestCase):
-    errorMatrix = [[1.6, 1.7],
-                   [0.6, 0.6],
-                   [-0.4, -0.4],
-                   [-1.4, -1.4],
-                   [-0.3, -0.4]]
-
-
-    def test_calc_Cov_from_ErrorMatrix(self):
-        cov = analysis.calc_Cov_from_ErrorMatrix(self.errorMatrix)
-        var_x = cov[0, 0]
-        var_y = cov[1, 1]
-        cov_xy = cov[0, 1]
-        self.assertAlmostEqual(var_x, 1.026, 4)
-        self.assertAlmostEqual(var_y, 1.10600, 4)
-        self.assertAlmostEqual(cov_xy, 1.064, 4)
 
 
 class Test_STLHeandler(unittest.TestCase):
     def test_import(self):
         stl_heandler = STL_Handler()
-        stl_heandler.importSTL()
+        stl_heandler.importSTL("sp_exp.stl")
+
         self.assertEqual(3, len(stl_heandler.triangle[0]))
         self.assertEqual(0.0, stl_heandler.triangle[0][0].x)
         self.assertEqual(0.0, stl_heandler.triangle[0][0].y)
@@ -317,10 +302,11 @@ class Test_STLHeandler(unittest.TestCase):
 
         stl_handler = STL_Handler()
         stl_handler.importSTL()
+        stl_handler.importSTL("sp_exp.stl")
         ellipsoid_stl = "solid OpenSCAD_Model\n"
 
         ellipsoid_stl += stl_handler.create_ellipsoid_stl(eig_vec, eig_valu, [10, 0, 0], 1, False)
-        print(ellipsoid_stl)
+        # print(ellipsoid_stl)
         self.assertEqual('vertex 11.997  0.635 -1.716', ellipsoid_stl.splitlines()[3])
 
         ellipsoid_stl += "endsolid OpenSCAD_Model"
@@ -337,7 +323,6 @@ if __name__ == '__main__':
 
     test_classes_to_run = [TestMyPhoto,
                            TestMyPoint,
-                           TestAnalysis,
                            TestMyProject,
                            TestSVG_Photo_Representation,
                            TestPeseudo_3D_intersection_adjustment,

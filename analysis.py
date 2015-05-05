@@ -22,14 +22,29 @@ imp.reload(pysvg)
 from pysvg.builders import *
 
 
-class I3_Photo(object):
-    def __init__(self, label=None):
+class I3_Photo():
+    """
+    I3 Photo can store photo information.
 
+    :ivar label: image label
+    :ivar points: list of visible points
+    :ivar photoScan_camera: PhotoScan.Camera representation of this Photo
+    :ivar sigma: standard deviation of the image measurement. calculatet from the covarianzmatrix of all measurements
+
+    """
+
+    def __init__(self, label=None):
+        """
+
+        """
         self.label = label
+
         self.points = []
         """:type : list of I3_Point"""
-        self.photoscanCamera = None
-        self.sigma = None
+        self.photoScan_camera = None
+        """:type : PhotoScan.Camera"""
+        self.__sigma = None
+        """:type : PhotoScan.Vector"""
 
     def add_point(self, new_point=None):
         """
@@ -41,29 +56,26 @@ class I3_Photo(object):
         self.points.append(new_point)
         return self.points[-1]
 
-    def calc_sigma(self):
-        if self.sigma is None:
-            # 'xy' -> Point
-            # 'x,y' -> Sigma for x and y
+    def __set_sigma(self, sigma):
+        self.__sigma = sigma
 
+    def __calc_sigma(self):
+        """
+        returns the standard diviation of the x and y image measurements.
+        the calculation used the covarianzmatrix (see. http://www.chemgapedia.de/vsengine/vlu/vsc/de/ch/13/vlu/daten/multivariate_datenanalyse_allg/multivar_datenanalyse_allg.vlu/Page/vsc/de/ch/13/anc/daten/multivar_datenanalyse_allg/varianz_kovarianzmatrix.vscml.html)
+        :rtype : PhotoScan.Vector
+        """
+        if self.__sigma is None:
             error_matrix = self.get_error_matrix()
+            cov = self.calc_cov_from_error_matrix(error_matrix)
 
-            # error_quad_sum.x += point.error_I.x ** 2
-            # error_quad_sum.y += point.error_I.y ** 2
-
-            # count += 1
-
-            # sigma_x = math.sqrt(error_quad_sum.x / count)
-            # sigma_y = math.sqrt(error_quad_sum.y / count)
-
-            cov = calc_cov_from_error_matrix(error_matrix)
             sigma_x = math.sqrt(cov[0, 0])
             sigma_y = math.sqrt(cov[1, 1])
-            # return (PhotoScan.Vector([sigma_x, sigma_y]), error_quad_sum, count)
-            self.sigma = PhotoScan.Vector([sigma_x, sigma_y])
-        return self.sigma
 
-    def get_max(self):
+            self.__sigma = PhotoScan.Vector([sigma_x, sigma_y])
+        return self.__sigma
+
+    def get_max_error(self):
         error_matrix = self.get_error_matrix()
 
         max_error = PhotoScan.Vector((0, 0))
@@ -73,114 +85,109 @@ class I3_Photo(object):
 
         return max_error
 
+    @staticmethod
+    def calc_cov_from_error_matrix(error_matrix):
+        # X_list = []
+        # for error in pointError:
+        # X_list.append([error.x, error.y, error.z])
+
+        X_matrix = PhotoScan.Matrix(error_matrix)
+
+        C = X_matrix.t() * X_matrix
+        C = C * (1 / (len(error_matrix)))
+
+        return C
+
     def get_error_matrix(self):
+        """
+        the value of each row of error matrix shows the image error in x and y.
+        normalie this matrix is calculated by subtraction the measurement by the
+        mean of all measurements (coloumn mean) [x_11 - x_mean, y_11-y_mean;...]
+        """
         error_matrix = []
         for point in self.points:
             error_matrix.append([point.error_I.x, point.error_I.y])
         return error_matrix
 
-    @classmethod
-    def print_report_header(cls):
+    @staticmethod
+    def print_report_header():
 
-        r_str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n'.format('Cam #',
-                                                                               'Projections',
-                                                                               'SIG x',
-                                                                               'SIG y',
-                                                                               'SIG P',
-                                                                               'MAX x',
-                                                                               'MAX y'
-                                                                               )
+        r_str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n' \
+            .format('Cam #',
+                    'Projections',
+                    'SIG x',
+                    'SIG y',
+                    'SIG P',
+                    'MAX x',
+                    'MAX y')
 
         return r_str
 
     def print_report_line(self):
 
         r_str = ''
-        sigma = self.calc_sigma()
-        max_error = self.get_max()
-        r_str += '{:>12s}{:14d}{:9.5f}{:9.5f}{:9.5f}{:9.5f}{:9.5f}\n'.format(self.label,
-                                                                             len(self.points),
-                                                                             sigma.x,
-                                                                             sigma.y,
-                                                                             sigma.norm(),
-                                                                             max_error.x,
-                                                                             max_error.y)
+        sigma = self.sigma
+        max_error = self.get_max_error()
+        r_str += '{:>12s}{:14d}{:9.5f}{:9.5f}{:9.5f}{:9.5f}{:9.5f}\n'. \
+            format(self.label,
+                   len(self.points),
+                   sigma.x,
+                   sigma.y,
+                   sigma.norm(),
+                   max_error.x,
+                   max_error.y)
 
         return r_str
 
+    sigma = property(__calc_sigma, __set_sigma)
+
 
 class I3_Point():
+    """
+    Representation of a feature point in a Image.
+    :ivar projection_I: reprojection of the world point into the image plane
+    :ivar measurement_I: measurement of the feature
+    :ivar track_id: global id of the point
+    :ivar coord_W: world coordinates of the point
+    :ivar coord_C: camera coordinates of the point
+    """
+
     def __init__(self,
                  projection_I=None,
                  measurement_I=None,
                  track_id=None,
                  coord_W=None,
                  coord_C=None,
-                 error_W=None,
-                 ratio_I_2_W=None):
+                 ):
         self.projection_I = projection_I
         self.measurement_I = measurement_I
         self.track_id = track_id
         self.coord_W = coord_W
-
         self.coord_C = coord_C
-        self.error_W = error_W
-        self.measurement_C = None
-        self.sigma_I = None
 
-    def project_sigma_2_W(self, sigma_I=None):
-        if not sigma_I:
-            sigma_I = self.sigma_I
-        # sigma_W is equal to the length of the error_W vector
-        sigma_W = self.ratio_W_2_I * sigma_I
-
-        trim_faktor = sigma_W / self.error_W.norm()
-        return self.error_W * trim_faktor
 
     @property
     def error_I(self):
         return self.projection_I - self.measurement_I
 
-    @property
-    def ratio_W_2_I(self):
-        return self.error_W.norm() / self.error_I.norm()
-
-
-class I3_GlobalPoint():
-    def __init__(self):
-        self.points = []
-        self.cov_W = None
-        self.sigma_W = None
-
-        # def calcCov_W_from_Std(self):
-        # if len(self.points) <= 2:
-        # return None
-        #
-        # X_list = []
-        # summe1 = 0
-        # summe2 = 0
-        #
-        # for point in self.points:
-        # assert isinstance(point, I3_Point)
-        # std_error_W = point.projectSigma_2_W()
-        #
-        # X_list.append([std_error_W.x, std_error_W.y, std_error_W.z])
-        #
-        # print('x_list', X_list)
-        # X_matrix = PhotoScan.Matrix(X_list)
-        #
-        # C = X_matrix.t() * X_matrix
-        # C = C * (1 / (len(self.points) - 1))
-        #
-        # self.cov_W = C
-
 
 class I3_Project():
+    """
+    I3_Project is the  main class of the module.
+    it is used to controll the workflow of the analysis.
+    Beside some helper functions, the main workflow functions are:
+    print_report()
+    create_project_SVG()
+    export_STL(binary=True, factor=factor)
+
+    :ivar photos: list of all photos in this project
+    :ivar point_photo_reference: dictonary with track_id as key
+    and a list of all photos, in which the points are visible, as value
+    """
+
     def __init__(self):
         self.photos = []
         """:type: list[I3_Photo]"""
-
-        # self.points = defaultdict(I3_GlobalPoint)
         self.point_photo_reference = {}
         """:type: dict[int, list[I3_Photo]]"""
 
@@ -265,7 +272,7 @@ class I3_Project():
         var_x_sum = 0
         var_y_sum = 0
         for photo in photos:
-            sigma_photo = photo.calc_sigma()
+            sigma_photo = photo.sigma
             var_x_sum += sigma_photo.x ** 2
             var_y_sum += sigma_photo.y ** 2
 
@@ -292,7 +299,7 @@ class I3_Project():
                 continue
 
             this_photo = I3_Photo(camera.label)
-            this_photo.photoscanCamera = camera
+            this_photo.photoScan_camera = camera
             all_photos.append(this_photo)
 
             T = camera.transform.inv()
@@ -320,9 +327,6 @@ class I3_Project():
 
                     # error_C = point_C - measurement_C * point_C.z
 
-                    measurement_W = camera.transform.mulp(measurement_C * point_C.z)
-                    error_W = point_W - measurement_W
-                    # error_W_length = error_W.norm()
 
                     # save Point in curren Photo
                     if point_I:
@@ -333,7 +337,6 @@ class I3_Project():
                         point.measurement_I = measurement_I
                         point.coord_C = point_C
                         point.coord_W = point_W
-                        point.error_W = error_W
                         point.measurement_C = measurement_C
 
                     dist = error_I.norm() ** 2
@@ -625,7 +628,7 @@ class peseudo_3D_intersection_adjustment():
             L_vector_for_cam = []
 
             paramerter_type = X_vector_element.paramerter_type_cam
-            R_t = photo.photoscanCamera.transform
+            R_t = photo.photoScan_camera.transform
 
             R = PhotoScan.Matrix([[R_t[0, 0], R_t[0, 1], R_t[0, 2]],
                                   [R_t[1, 0], R_t[1, 1], R_t[1, 2]],
@@ -634,11 +637,11 @@ class peseudo_3D_intersection_adjustment():
                                      X_vector_element.value_type_R,
                                      R,
                                      photo.label)
-            cam_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, photo.photoscanCamera.center.x,
+            cam_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, photo.photoScan_camera.center.x,
                                      photo.label)
-            cam_Y = X_vector_element(paramerter_type, X_vector_element.value_type_Y, photo.photoscanCamera.center.y,
+            cam_Y = X_vector_element(paramerter_type, X_vector_element.value_type_Y, photo.photoScan_camera.center.y,
                                      photo.label)
-            cam_Z = X_vector_element(paramerter_type, X_vector_element.value_type_Z, photo.photoscanCamera.center.z,
+            cam_Z = X_vector_element(paramerter_type, X_vector_element.value_type_Z, photo.photoScan_camera.center.z,
                                      photo.label)
 
             X_vector_for_cam.extend([cam_X, cam_Y, cam_Z, cam_R])
@@ -659,9 +662,9 @@ class peseudo_3D_intersection_adjustment():
 
                     # todo: sigma ist noch fuer pixel ! das muss geaendert werden
                     L_x = L_vector_element(photo.label, track_id, L_vector_element.value_type_x, point.measurement_C.x,
-                                           photo.calc_sigma().x)
+                                           photo.sigma.x)
                     L_y = L_vector_element(photo.label, track_id, L_vector_element.value_type_y, point.measurement_C.y,
-                                           photo.calc_sigma().y)
+                                           photo.sigma.y)
 
                     L_vector_for_cam.extend([L_x, L_y])
 
@@ -946,8 +949,8 @@ class SVG_Photo_Representation():
         """
 
         self.i3Photo = photo
-        self.width = photo[0].photoscanCamera.sensor.width
-        self.height = photo[0].photoscanCamera.sensor.height
+        self.width = photo[0].photoScan_camera.sensor.width
+        self.height = photo[0].photoScan_camera.sensor.height
         self.svg_witdh = svg_width
         self.svg_height = self.svg_witdh / (self.width / self.height)
         self.labelpos = (10, 16)
@@ -1205,19 +1208,6 @@ def trans_error_image_2_camera(camera, point_pix, point_camera):
     point_C = PhotoScan.Vector((x, y, 1)) * point_camera.z
 
     return point_C, center_C
-
-
-def calc_cov_from_error_matrix(error_matrix):
-    # X_list = []
-    # for error in pointError:
-    # X_list.append([error.x, error.y, error.z])
-
-    X_matrix = PhotoScan.Matrix(error_matrix)
-
-    C = X_matrix.t() * X_matrix
-    C = C * (1 / (len(error_matrix)))
-
-    return C
 
 
 def calc_cov_4_all_points(point_list):
