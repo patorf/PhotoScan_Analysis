@@ -45,9 +45,7 @@ class I3_Photo(object):
         if self.sigma is None:
             # 'xy' -> Point
             # 'x,y' -> Sigma for x and y
-            error_quad_sum = None
-            count = 0
-            error_quad_sum = PhotoScan.Vector([0, 0])
+
             error_matrix = self.get_error_matrix()
 
             # error_quad_sum.x += point.error_I.x ** 2
@@ -251,27 +249,6 @@ class I3_Project():
                 writer.close()
                 print('save bin file ', filename, ' to: ', self.directory)
 
-    def build_global_point_error(self):
-
-        max_P = PhotoScan.Vector([0, 0, 0])
-        min_P = PhotoScan.Vector([0, 0, 0])
-        for photo in self.photos:
-            sigma_photo = photo.calc_sigma()
-            assert isinstance(photo, I3_Photo)
-            for point in photo.points:
-                assert isinstance(point, I3_Point)
-                max_P.x = max(max_P.x, point.coord_W.x)
-                max_P.y = max(max_P.y, point.coord_W.y)
-                max_P.z = max(max_P.z, point.coord_W.z)
-
-                min_P.x = min(min_P.x, point.coord_W.x)
-                min_P.y = min(min_P.y, point.coord_W.y)
-                min_P.z = min(min_P.z, point.coord_W.z)
-
-                point.sigma_I = sigma_photo
-
-                self.points[point.track_id].points.append(point)
-
     def calc_cov_for_all_points(self):
         pass
         # for trackid, point in self.points.items():
@@ -371,7 +348,7 @@ class I3_Project():
 
             sigma = math.sqrt(err_sum / num)
 
-        rep_avg = sigma
+            rep_avg = sigma
 
         return rep_avg, photo_avg, all_photos
 
@@ -461,11 +438,11 @@ class X_vector_element():
     value_type_Z = 'Z'
     value_type_R = 'R'
 
-    def __init__(self, parameter_type, value_type, value, id):
+    def __init__(self, parameter_type, value_type, value, id_x):
         self.value_type = value_type
         self.parameter_type = parameter_type
         self.value = value
-        self.id = id
+        self.id_x = id_x
 
     def __str__(self):
 
@@ -473,12 +450,12 @@ class X_vector_element():
             return "{:s} {:s} :{:s} id:{:s}".format(self.parameter_type,
                                                     self.value_type,
                                                     str(self.value),
-                                                    str(self.id))
+                                                    str(self.id_x))
         else:
             return "{:s} {:s} :{:.9f} id:{:s}".format(self.parameter_type,
                                                       self.value_type,
                                                       self.value,
-                                                      str(self.id))
+                                                      str(self.id_x))
 
 
 class L_vector_element():
@@ -582,7 +559,7 @@ class peseudo_3D_intersection_adjustment():
     def get_measurment_vector_4_track_id(point_photo_reference, track_id):
         """
 
-        :type photos: list of I3_Photo
+
         """
 
         # for track_id,photos in point_photo_reference.items():
@@ -614,7 +591,7 @@ class peseudo_3D_intersection_adjustment():
         return Qxx
 
     @staticmethod
-    def get_P_matrix(L_vector, sigma0=1):
+    def get_P_matrix(L_vector, sigma0=1.0):
         """
 
         :type L_vector: list of L_vector_element
@@ -881,7 +858,7 @@ class STL_Handler():
                 if "endloop" in line:
                     self.triangle.append(triple)
 
-    def create_ellipsoid_stl(self, eigvector, eigvalue, position, factor=1, binary=True):
+    def create_ellipsoid_stl(self, eigvector, eigvalue, position, factor=1.0, binary=True):
         sorted_indeces_descanding = sorted(range(len(eigvalue)), key=lambda k: eigvalue[k])[::-1]
         sorted_eigenvalue = []
         for sort_i in sorted_indeces_descanding:
@@ -1023,7 +1000,7 @@ class SVG_Photo_Representation():
 
         # Add Label
         label = text("All Photos Error", *self.labelpos)
-        if (len(self.i3Photo) == 1):
+        if len(self.i3Photo) == 1:
             label = text(self.i3Photo[0].print_report_line(), *self.labelpos)
         text_style = StyleBuilder()
         text_style.setFontSize('16')
@@ -1174,8 +1151,8 @@ class SVG_Photo_Representation():
         error_raster = [[[] for x in range(cols)] for x in range(rows)]
 
         for point in self.points:
-            i = int(point.measurement_I.y * (rows) / height_I)
-            j = int(point.measurement_I.x * (cols) / width_I)
+            i = int(point.measurement_I.y * rows / height_I)
+            j = int(point.measurement_I.x * cols / width_I)
             # print('floatcols', point.measurement_I.x * (cols - 1) / width_I)
             # print('floatrows', point.measurement_I.y * (rows - 1) / height_I)
 
@@ -1200,8 +1177,6 @@ class SVG_Photo_Representation():
                 for point in row:
                     error_vector += point.error_I
 
-                error_mean = error_vector
-
                 if len(row):  # if empty  avoid div by 0
                     error_mean = (error_vector / len(row))
 
@@ -1217,7 +1192,6 @@ class SVG_Photo_Representation():
 
 
 def trans_error_image_2_camera(camera, point_pix, point_camera):
-    t = camera.transform
     calib = camera.sensor.calibration
     fx = calib.fx
     fy = calib.fy
