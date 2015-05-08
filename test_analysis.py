@@ -6,7 +6,7 @@ from analysis import I3_Point
 from analysis import I3_Photo
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
-from analysis import peseudo_3D_intersection_adjustment
+from analysis import Peseudo_3D_intersection_adjustment
 from analysis import Py_2_OpenScad
 from analysis import STL_Handler
 import analysis
@@ -17,7 +17,7 @@ from analysis import I3_Photo
 from analysis import I3_Point
 from analysis import I3_Project
 from analysis import SVG_Photo_Representation
-from analysis import peseudo_3D_intersection_adjustment
+from analysis import Peseudo_3D_intersection_adjustment
 from analysis import Py_2_OpenScad
 from analysis import STL_Handler
 
@@ -59,7 +59,7 @@ class TestMyPhoto(unittest.TestCase):
 
 
     def test_calc_sigma(self):
-        sigma = self.photo.sigma
+        sigma = self.photo.sigma_I
         self.assertAlmostEqual(sigma.x, 0.395994834, 6)
         self.assertAlmostEqual(sigma.y, 0.057946469, 6)
 
@@ -148,16 +148,16 @@ class TestMyPoint(unittest.TestCase):
 
 class TestMyProject(unittest.TestCase):
     pho1 = I3_Photo()
-    pho1.sigma = PhotoScan.Vector((2, 13))
+    pho1.sigma_I = PhotoScan.Vector((2, 13))
 
     pho2 = I3_Photo()
-    pho2.sigma = PhotoScan.Vector((5, 11))
+    pho2.sigma_I = PhotoScan.Vector((5, 11))
 
     project = I3_Project()
     project.photos = [pho1, pho2]
 
     def test_calcGlobalSigma(self):
-        rms_x, rms_y = self.project.get_RMS_4_all_photos()
+        rms_x, rms_y = self.project._get_RMS_4_all_photos()
         self.assertAlmostEqual(rms_x, 3.807886553, 6)
         self.assertAlmostEqual(rms_y, 12.04159458, 6)
 
@@ -231,9 +231,9 @@ class TestPeseudo_3D_intersection_adjustment(unittest.TestCase):
         pass
 
     def test_eig(self):
-        adju = peseudo_3D_intersection_adjustment()
+        adju = Peseudo_3D_intersection_adjustment()
         m = PhotoScan.Matrix([[504, 360, 180], [360, 360, 0], [180, 0, 720]])
-        eig_valu, eig_vec = adju.get_eigen_vel_vec(m)
+        eig_valu, eig_vec = adju._get_eigen_vel_vec(m)
         # print(eig_vec[0])
         # print(eig_vec[1])
         # print(eig_vec[2])
@@ -249,12 +249,12 @@ class TestPeseudo_3D_intersection_adjustment(unittest.TestCase):
 
 class Test_Py_2_OpenScad(unittest.TestCase):
     def test_errorEllipse_from_eig(self):
-        adju = peseudo_3D_intersection_adjustment()
+        adju = Peseudo_3D_intersection_adjustment()
         m = PhotoScan.Matrix([[504, 360, 180], [360, 360, 0], [180, 0, 720]])
         m = PhotoScan.Matrix([[24.66697238419596, 11.102022651894911, 29.082023223173206],
                               [11.10202265189491, 10.052229488742526, 14.941828405336427],
                               [29.082023223173206, 14.941828405336427, 42.78791682803554]])
-        eig_valu, eig_vec = adju.get_eigen_vel_vec(m)
+        eig_valu, eig_vec = adju._get_eigen_vel_vec(m)
         py2scad = Py_2_OpenScad()
 
         scad_string = py2scad.errorEllipse_from_eig(eig_vec, eig_valu, [0, 0, 0])
@@ -292,13 +292,13 @@ class Test_STLHeandler(unittest.TestCase):
         self.assertEqual(1.44889, stl_heandler.triangle[-1][2].z)
 
     def test_create_ellipsoid_stl(self):
-        adju = peseudo_3D_intersection_adjustment()
+        adju = Peseudo_3D_intersection_adjustment()
         m = PhotoScan.Matrix([[504, 360, 180], [360, 360, 0], [180, 0, 720]])
         m = PhotoScan.Matrix([[24.66697238419596, 11.102022651894911, 29.082023223173206],
                               [11.10202265189491, 10.052229488742526, 14.941828405336427],
                               [29.082023223173206, 14.941828405336427, 42.78791682803554]])
 
-        eig_valu, eig_vec = adju.get_eigen_vel_vec(m)
+        eig_valu, eig_vec = adju._get_eigen_vel_vec(m)
 
         stl_handler = STL_Handler()
         stl_handler.importSTL()
