@@ -1385,7 +1385,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         sys.argv.append('help')
-    print('Photoscan Analysis v0.1')
+    print('PhotoScan Analysis v0.1')
     for i, arg in enumerate(sys.argv):
 
         if arg == ' ':
@@ -1398,7 +1398,7 @@ if __name__ == '__main__':
             howto += '-svgfactor [factor]\t\tMagnification factor of the error-vector for the SVG-File (default: 40)\n'
             howto += '-svgcols [columns]\t\tThe number of columns used to generate the overview image (default: 20)\n'
             howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoids. Option: filename (default: stl_export)\n'
-            howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoide-axis (default: 100)'
+            howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)'
             howto += '\n\nSample:\n'
             howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
             print(howto)
@@ -1437,52 +1437,4 @@ if __name__ == '__main__':
     if make_stl:
         project.export_STL(stl_filename, factor=stl_factor)
 
-        # project.create_project_SVG(svg_filename, svg_factor, svg_cols)
-        # project.fill_photos_and_with_points(chunk)
-        # project.build_global_point_error()
-        # project.save_and_print_report()
-        # project.create_project_SVG(error_factor=40,cols=20)
-        # factor = 10
-        # project.export_STL(binary=True, factor=factor)
 
-
-
-
-        # testPointError = [PhotoScan.Vector((1, 2, 1.4)), PhotoScan.Vector(
-        ##    (-1.2, 1, 2.3)), PhotoScan.Vector((-1.4, 2, 3))]
-        # print (calc_Cov_4_Point(testPointError))
-
-        ### Programm Start ###
-
-        # pointErrors_W = defaultdict(list)
-        # pointErrors_I = defaultdict(list)
-
-        # project = I3_Project()
-        # total_error, ind_error, allPhotos = project.calc_reprojection(chunk)
-        # project.build_global_point_error()
-        # project.calc_cov_for_all_points()
-        # project.print_report()
-        # project.create_project_SVG()
-        # project.export_for_OpenScad()
-        # project.export_STL(binary=True, factor=(0.05/10))
-        # points_reference = project.get_point_photos_reference()
-        # for key,value in points_reference.items():
-        # if len(value)<3:
-        # print(key)
-        # print(points_reference)
-        # adjustment = Peseudo_3D_intersection_adjustment(points_reference)
-        # adjustment.get_jacobian(points_reference, 19101)
-        # adjustment.get_jacobian( list(points_reference.keys())[1000])
-        # Qxx = adjustment.get_cov_for_point(list(points_reference.keys())[200])
-        # print(Qxx)
-        # project.create_project_SVG()
-        # print(total_error)
-        # print(ind_error)
-        # print(vars(allPhotos[0].points[1]))
-
-        # covs_Dict = calc_Cov_4_allPoints(pointErrors_W)
-
-        # point_cloud = chunk.point_cloud
-        # points = point_cloud.points
-
-        # export_No_xyz_cov(points, covs_Dict)
