@@ -280,7 +280,7 @@ class Test_Py_2_OpenScad(unittest.TestCase):
 class Test_STLHeandler(unittest.TestCase):
     def test_import(self):
         stl_heandler = STL_Handler()
-        stl_heandler.importSTL("sp_exp.stl")
+        stl_heandler.importSTL("sp_exp_for_test.stl")
 
         self.assertEqual(3, len(stl_heandler.triangle[0]))
         self.assertEqual(0.0, stl_heandler.triangle[0][0].x)
@@ -302,7 +302,7 @@ class Test_STLHeandler(unittest.TestCase):
 
         stl_handler = STL_Handler()
         stl_handler.importSTL()
-        stl_handler.importSTL("sp_exp.stl")
+        stl_handler.importSTL("sp_exp_for_test.stl")
         ellipsoid_stl = "solid OpenSCAD_Model\n"
 
         ellipsoid_stl += stl_handler.create_ellipsoid_stl(eig_vec, eig_valu, [10, 0, 0], 1, False)
