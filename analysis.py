@@ -130,13 +130,13 @@ class I3_Photo():
 
     @staticmethod
     def print_report_header():
-
-        r_str = '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n' \
-            .format('Cam #',
+        r_str = 'Photoscan Analysis Image-Measurement-Report (Unit = Pixel) \n'
+        r_str += '{0:>12s}{1:>14s}{2:>9s}{3:>9s}{4:>9s}{5:>9s}{6:>9s}\n' \
+            .format('Camera Name',
                     'Projections',
-                    'SIG x',
-                    'SIG y',
-                    'SIG P',
+                    'SIGMA x',
+                    'SIGMA y',
+                    'SIGMA P',
                     'MAX x',
                     'MAX y')
 
@@ -1034,7 +1034,7 @@ class SVG_Photo_Representation():
         cat_borders, cat_size = self.__class__.get_categroy_ranges(min_max, colormap)
         shape_builder = ShapeBuilder()
 
-        title = text("Point Count per Cell", 0, -4)
+        title = text("point count per cell", 0, -4)
         group.addElement(title)
 
         color_rec = shape_builder.createRect(0, height, 20, 20, strokewidth=1, fill='white')
@@ -1057,7 +1057,7 @@ class SVG_Photo_Representation():
 
         return group
 
-    def get_lable(self):
+    def get_lable(self, as_raster=False):
         """
         returns tha lable of the photo.
         :return:
@@ -1065,7 +1065,11 @@ class SVG_Photo_Representation():
 
         # Add Label
         # if overview photo
-        label = text("All Photos Error", *self.labelpos)
+        label = None
+        if as_raster:
+            label = text("Photo Error Raster Summery", *self.labelpos)
+        else:
+            label = text("Photos Error Summery", *self.labelpos)
         # if normal photo
         if len(self.i3Photos) == 1:
             label = text(self.i3Photos[0].print_report_line(), *self.labelpos)
@@ -1086,7 +1090,7 @@ class SVG_Photo_Representation():
         shape_builder = ShapeBuilder()
         photo_group = g()
 
-        label = self.get_lable()
+        label = self.get_lable(as_raster)
         photo_group.addElement(label)
 
         image_group = g()
@@ -1393,9 +1397,9 @@ if __name__ == '__main__':
             howto += '-svgout [filename]\t\tCreates a SVG-Image with image-measurements Option: filename (default: image_measurements\n'
             howto += '-svgfactor [factor]\t\tMagnification factor of the error-vector for the SVG-File (default: 40)\n'
             howto += '-svgcols [columns]\t\tThe number of columns used to generate the overview image (default: 20)\n'
-            howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoides Option: filename (default: stl_export)\n'
+            howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoids. Option: filename (default: stl_export)\n'
             howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoide-axis (default: 100)'
-            howto += '\nsample:\n'
+            howto += '\n\nSample:\n'
             howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
             print(howto)
             break
