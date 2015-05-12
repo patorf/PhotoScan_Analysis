@@ -15,7 +15,6 @@ import svd
 from pysvg.builders import *
 import pysvg
 import imp
-from csg import *
 
 
 imp.reload(pysvg)
@@ -1067,9 +1066,9 @@ class SVG_Photo_Representation():
         # if overview photo
         label = None
         if as_raster:
-            label = text("Photo Error Raster Summery", *self.labelpos)
+            label = text("Images Error Raster Summery", *self.labelpos)
         else:
-            label = text("Photos Error Summery", *self.labelpos)
+            label = text("Images Error Summery", *self.labelpos)
         # if normal photo
         if len(self.i3Photos) == 1:
             label = text(self.i3Photos[0].print_report_line(), *self.labelpos)
@@ -1383,58 +1382,65 @@ if __name__ == '__main__':
         else:
             return None
 
-    if len(sys.argv) == 1:
-        sys.argv.append('help')
-    print('PhotoScan Analysis v0.1')
-    for i, arg in enumerate(sys.argv):
-
-        if arg == ' ':
-            continue
-        if arg == 'help':
-            howto = 'HowTo:\n'
-            howto += 'Command Line Arguments:\n'
-            howto += '-rout [filename]\t\tCreates a report file. Options: filename (default: report)\n'
-            howto += '-svgout [filename]\t\tCreates a SVG-Image with image-measurements Option: filename (default: image_measurements\n'
-            howto += '-svgfactor [factor]\t\tMagnification factor of the error-vector for the SVG-File (default: 40)\n'
-            howto += '-svgcols [columns]\t\tThe number of columns used to generate the overview image (default: 20)\n'
-            howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoids. Option: filename (default: stl_export)\n'
-            howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)'
-            howto += '\n\nSample:\n'
-            howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
-            print(howto)
-            break
-        if arg == '-rout':
-            report_filename = check_argument(sys.argv[i + 1])
-            make_report = True
-
-        elif arg == '-svgout':
-            svg_filename = check_argument(sys.argv[i + 1])
-            make_svg = True
-
-        elif arg == '-svgfactor':
-            svg_factor = float(check_argument(sys.argv[i + 1]))
-
-        elif arg == '-svgcols':
-            svg_cols = int(check_argument(sys.argv[i + 1]))
-
-        elif arg == '-stlout':
-            stl_filename = check_argument(sys.argv[i + 1])
-            make_stl = True
-
-        elif arg == '-stlfactor':
-            stl_factor = float(check_argument(sys.argv[i + 1]))
 
     doc = PhotoScan.app.document
-    chunk = doc.chunk
+    chunk = None
+    if doc.chunk:
+        chunk = doc.chunk
 
-    project = I3_Project(chunk)
-    if make_report:
-        project.save_and_print_report(report_filename)
+        if len(sys.argv) == 1:
+            sys.argv.append('help')
+        print('PhotoScan Analysis v0.1')
+        for i, arg in enumerate(sys.argv):
 
-    if make_svg:
-        project.create_project_SVG(svg_filename, svg_factor, svg_cols)
+            if arg == ' ':
+                continue
+            if arg == 'help':
+                howto = 'HowTo:\n'
+                howto += 'Command Line Arguments:\n'
+                howto += '-rout [filename]\t\tCreates a report file. Options: filename (default: report)\n'
+                howto += '-svgout [filename]\t\tCreates a SVG-Image with image-measurements Option: filename (default: image_measurements\n'
+                howto += '-svgfactor [factor]\t\tMagnification factor of the error-vector for the SVG-File (default: 40)\n'
+                howto += '-svgcols [columns]\t\tThe number of columns used to generate the overview image (default: 20)\n'
+                howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoids. Option: filename (default: stl_export)\n'
+                howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)'
+                howto += '\n\nSample:\n'
+                howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
+                print(howto)
+                break
+            if arg == '-rout':
+                report_filename = check_argument(sys.argv[i + 1])
+                make_report = True
 
-    if make_stl:
-        project.export_STL(stl_filename, factor=stl_factor)
+            elif arg == '-svgout':
+                svg_filename = check_argument(sys.argv[i + 1])
+                make_svg = True
+
+            elif arg == '-svgfactor':
+                svg_factor = float(check_argument(sys.argv[i + 1]))
+
+            elif arg == '-svgcols':
+                svg_cols = int(check_argument(sys.argv[i + 1]))
+
+            elif arg == '-stlout':
+                stl_filename = check_argument(sys.argv[i + 1])
+                make_stl = True
+
+            elif arg == '-stlfactor':
+                stl_factor = float(check_argument(sys.argv[i + 1]))
+
+        project = I3_Project(chunk)
+        if make_report:
+            project.save_and_print_report(report_filename)
+
+        if make_svg:
+            project.create_project_SVG(svg_filename, svg_factor, svg_cols)
+
+        if make_stl:
+            project.export_STL(stl_filename, factor=stl_factor)
+
+    else:
+        print("Please open a Project with completed photo alignment")
+
 
 
