@@ -2,7 +2,6 @@
 PhotoScan Analyse 0.2
 """
 
-
 import copy
 import os
 import re
@@ -229,6 +228,7 @@ class I3_Project():
         """:type: dict[int, list[I3_Photo]]"""
 
         self.path = PhotoScan.app.document.path
+        self.adjustment = None
 
         project_directory = "\\".join(self.path.split('\\')[:-1])
         analyse_dir = PhotoScan.app.getExistingDirectory(
@@ -282,9 +282,10 @@ class I3_Project():
 
         print('start output STL-File with factor {:8.6f}: '.format(factor) + filename)
         PhotoScan.app.update()
-        adjustment = Peseudo_3D_intersection_adjustment(self.__get_point_photos_reference())
+        if self.adjustment is None:
+            self.adjustment = Peseudo_3D_intersection_adjustment(self.__get_point_photos_reference())
 
-        ellipsoid_parameter_list = adjustment._get_eigvalues_eigvectors_pos_for_track_id()
+        ellipsoid_parameter_list = self.adjustment._get_eigvalues_eigvectors_pos_for_track_id()
         output_str = "solid Ellipsoids\n"
 
         stl_handler = STL_Handler()
@@ -311,6 +312,40 @@ class I3_Project():
                 writer.add_faces(data)
                 writer.close()
                 print('save bin file ', filename, ' to: ', self.directory)
+
+    def exportEllipsoids(self, filename=None):
+        if filename is None:
+            filename = 'ellipsoid_export'
+        filename += '.ell'
+
+        if self.adjustment is None:
+            self.adjustment = Peseudo_3D_intersection_adjustment(self.__get_point_photos_reference())
+        ellipsoid_list = self.adjustment._get_eigvalues_eigvectors_pos_for_track_id()
+
+        export_str = "xc yc zc\n" \
+                     "xr.x xr.y xr.z\n" \
+                     "yr.x yr.y yr.z\n" \
+                     "zr.x zr.y zr.z\n"
+        for ellipsoid in ellipsoid_list:
+            eigVal = PhotoScan.Vector(ellipsoid[0])
+            eigVecs = PhotoScan.Matrix(ellipsoid[1])
+            pos = PhotoScan.Vector(ellipsoid[2])
+
+            xr = list(eigVecs.col(0) * eigVal[0])
+            yr = list(eigVecs.col(1) * eigVal[1])
+            zr = list(eigVecs.col(2) * eigVal[2])
+            xc = pos[0]
+            yc = pos[1]
+            zc = pos[2]
+            export_str += "{:.2e} {:.2e} {:.2e}\n".format(xc, yc, zc)
+            export_str += "{:.2e} {:.2e} {:.2e}\n".format(xr[0], xr[1], xr[2])
+            export_str += "{:.2e} {:.2e} {:.2e}\n".format(yr[0], yr[1], yr[2])
+            export_str += "{:.2e} {:.2e} {:.2e}\n".format(zr[0], zr[1], zr[2])
+
+        f = open(self.directory + '\\' + filename, 'w')
+        f.write(export_str)
+        f.close()
+        print('save file ', filename, ' to: ', self.directory)
 
     def _get_RMS_4_all_photos(self, photos=None):
         """
@@ -1376,6 +1411,7 @@ if __name__ == '__main__':
     make_stl = False
     stl_filename = None
     stl_factor = None
+    export_ellipsoid = None
 
     def check_next_argument(current_argument_index):
 
@@ -1463,6 +1499,9 @@ if __name__ == '__main__':
                     stl_filename = PhotoScan.app.getString('Choose a file name for the STL-File', 'stl_file_name')
                     stl_factor = PhotoScan.app.getInt('Choose a magnification factor of the ellipsoid-axis', 100)
 
+            elif arg == '-exp_ellipsoid':
+                export_ellipsoid = True
+
         project = I3_Project(chunk)
 
         if make_report:
@@ -1475,6 +1514,9 @@ if __name__ == '__main__':
 
         if make_stl:
             project.export_STL(stl_filename, factor=stl_factor)
+            PhotoScan.app.update()
+        if export_ellipsoid:
+            project.exportEllipsoids()
             PhotoScan.app.update()
 
 
