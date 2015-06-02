@@ -1,3 +1,8 @@
+"""
+PhotoScan Analyse 0.2
+"""
+
+
 import copy
 import os
 import re
@@ -15,7 +20,6 @@ import svd
 from pysvg.builders import *
 import pysvg
 import imp
-
 
 imp.reload(pysvg)
 from pysvg.builders import *
@@ -46,6 +50,7 @@ class I3_Photo():
         """:type : PhotoScan.Vector"""
         self.__sigma_C = None
         """:type : PhotoScan.Vector"""
+        self.thumbnail_path = None
 
     def add_point(self, new_point=None):
         """
@@ -71,7 +76,6 @@ class I3_Photo():
         sigma_y = math.sqrt(cov[1, 1])
 
         return PhotoScan.Vector([sigma_x, sigma_y])
-
 
     def __calc_sigma_I(self):
         if self.__sigma_I is None:
@@ -225,9 +229,18 @@ class I3_Project():
         """:type: dict[int, list[I3_Photo]]"""
 
         self.path = PhotoScan.app.document.path
-        self.directory = "\\".join(self.path.split('\\')[:-1])
+
+        project_directory = "\\".join(self.path.split('\\')[:-1])
+        analyse_dir = PhotoScan.app.getExistingDirectory(
+            'Please create or select a folder where the analys files will be saved')
+        if analyse_dir:
+            self.directory = analyse_dir
+        else:
+
+            self.directory = project_directory
+
         if chunk:
-            self.__fill_photos_and_with_points(chunk)
+            self.__fill_photos_with_points(chunk)
 
     def __get_point_photos_reference(self):
 
@@ -259,7 +272,6 @@ class I3_Project():
         print('save file ', filename, ' to: ', self.directory)
 
     def export_STL(self, filename=None, binary=None, factor=None):
-
         if filename is None:
             filename = 'stl_export'
         filename += '.stl'
@@ -269,7 +281,7 @@ class I3_Project():
             factor = 100
 
         print('start output STL-File with factor {:8.6f}: '.format(factor) + filename)
-
+        PhotoScan.app.update()
         adjustment = Peseudo_3D_intersection_adjustment(self.__get_point_photos_reference())
 
         ellipsoid_parameter_list = adjustment._get_eigvalues_eigvectors_pos_for_track_id()
@@ -300,7 +312,6 @@ class I3_Project():
                 writer.close()
                 print('save bin file ', filename, ' to: ', self.directory)
 
-
     def _get_RMS_4_all_photos(self, photos=None):
         """
         returns the root mean square for all photos in this project
@@ -322,7 +333,17 @@ class I3_Project():
 
         return rms_x, rms_y
 
-    def __fill_photos_and_with_points(self, chunk):
+    def __save_thumbnails(self):
+        for photo in self.photos:
+            thumbnail_path = self.directory + '/' + photo.label
+            success = photo.photoScan_camera.thumbnail.image().save(thumbnail_path)
+
+            if success:
+                photo.thumbnail_path = thumbnail_path
+            else:
+                print('can not save thumbnail')
+
+    def __fill_photos_with_points(self, chunk):
         """
         saves all photos (with points) in the chunck to slef.photos
         :param chunk:
@@ -420,6 +441,7 @@ class I3_Project():
         :param cols: the number of columns used to generate the overview image
         :return:
         """
+        self.__save_thumbnails()
         if filename is None:
             filename = 'image_measurements'
         if error_factor is None:
@@ -438,7 +460,8 @@ class I3_Project():
 
         s.addElement(summery)
         summery_group = g()
-        summery_error_raster, height = summery_SVG.get_raw_error_vector_svg(True, factor=error_factor, cols=cols)
+        summery_error_raster, height = summery_SVG.get_raw_error_vector_svg(as_raster=True,
+                                                                            factor=error_factor, cols=cols)
         summery_count_raster = summery_SVG.get_raster_count_svg(cols)
 
         legend = summery_SVG.count_legend
@@ -617,7 +640,6 @@ class Peseudo_3D_intersection_adjustment():
             pos = [pos_vector.x, pos_vector.y, pos_vector.z]
             return_list.append((eig_val, eig_vec, pos))
         return return_list
-
 
     def __get_cov_for_point(self, track_id):
         """
@@ -1097,6 +1119,12 @@ class SVG_Photo_Representation():
                                                stroke='navy')
         image_group.addElement(image_frame)
 
+        if len(self.i3Photos) == 1:
+            thumbnail = image(width=self.svg_witdh, height=self.svg_height)
+            thumbnail.set_xlink_href(self.i3Photos[0].thumbnail_path)
+            thumbnail.set_opacity(0.5)
+            image_group.addElement(thumbnail)
+
         points = self.points
 
         if as_raster:
@@ -1109,6 +1137,10 @@ class SVG_Photo_Representation():
                                                    self.circle_stroke)  # ,fill='rgba(0,0,0,1)')
             image_group.addElement(point_pos)
             image_group.addElement(self.draw_error_vector(point, factor))
+
+
+
+
 
         # Image Group Translation
         trans_image = TransformBuilder()
@@ -1300,36 +1332,6 @@ class SVG_Photo_Representation():
         return new_points, size
 
 
-def trans_error_image_2_camera(camera, point_pix, point_camera):
-    calib = camera.sensor.calibration
-    fx = calib.fx
-    fy = calib.fy
-    u = point_pix.x
-    v = point_pix.y
-
-    x = u / fx  # -calib.cx/fx # den hinteren term entfernen
-    y = v / fy  # -calib.cy/fy
-
-    center_C = PhotoScan.Vector((0, 0, 1)) * point_camera.z
-    point_C = PhotoScan.Vector((x, y, 1)) * point_camera.z
-
-    return point_C, center_C
-
-
-def calc_cov_4_all_points(point_list):
-    covs = {}  # Key = trackid ; value = 3x3 Matrix
-
-    for track_id, error in point_list.items():
-        if len(error) > 3:
-            pass
-            # cov = calc_Cov_4_Point(error)
-            # covs[track_id] = cov
-        else:
-            pass
-
-    return  # covs
-
-
 def creat_export_list(points, covs_dict):
     export_points = []
     for point in points:
@@ -1365,7 +1367,6 @@ def export_no_xyz_std(points, covs_Dict):
 
 if __name__ == '__main__':
 
-
     make_report = False
     report_filename = None
     make_svg = False
@@ -1376,12 +1377,14 @@ if __name__ == '__main__':
     stl_filename = None
     stl_factor = None
 
-    def check_argument(argument):
-        if argument[0] != '-' and argument != ' ':
-            return argument
-        else:
-            return None
+    def check_next_argument(current_argument_index):
 
+        if len(sys.argv) - 1 > current_argument_index:
+            next_argument = sys.argv[current_argument_index + 1]
+            if next_argument[0] != '-' and next_argument != ' ':
+                return next_argument
+            else:
+                return None
 
     doc = PhotoScan.app.document
     chunk = None
@@ -1391,6 +1394,7 @@ if __name__ == '__main__':
         if len(sys.argv) == 1:
             sys.argv.append('help')
         print('PhotoScan Analysis v0.1')
+
         for i, arg in enumerate(sys.argv):
 
             if arg == ' ':
@@ -1406,41 +1410,73 @@ if __name__ == '__main__':
                 howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)'
                 howto += '\n\nSample:\n'
                 howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
+                howto += '\n\nGUI\n'
+                howto += 'You can also use the GUI by choosing the argument \'-useGUI\''
                 print(howto)
                 break
             if arg == '-rout':
-                report_filename = check_argument(sys.argv[i + 1])
+                report_filename = check_next_argument(i)
                 make_report = True
 
             elif arg == '-svgout':
-                svg_filename = check_argument(sys.argv[i + 1])
+                svg_filename = check_next_argument(i)
                 make_svg = True
 
             elif arg == '-svgfactor':
-                svg_factor = float(check_argument(sys.argv[i + 1]))
+                svg_factor = float(check_next_argument(i))
 
             elif arg == '-svgcols':
-                svg_cols = int(check_argument(sys.argv[i + 1]))
+                svg_cols = int(check_next_argument(i))
 
             elif arg == '-stlout':
-                stl_filename = check_argument(sys.argv[i + 1])
+                stl_filename = check_next_argument(i)
                 make_stl = True
 
             elif arg == '-stlfactor':
-                stl_factor = float(check_argument(sys.argv[i + 1]))
+                stl_factor = float(check_next_argument(i))
+
+            elif arg == '-useGUI':
+
+                answer_yes = 'Yes'
+                make_report_answer = PhotoScan.app.getString('Do you want to create a report file?', answer_yes)
+                if make_report_answer == answer_yes:
+                    make_report = True
+                    report_filename = PhotoScan.app.getString('Choose a file name for the report', 'report_file_name')
+
+                make_svg_answer = PhotoScan.app.getString(
+                    'Do you want to create a a SVG-Image with image-measurements?',
+                    answer_yes)
+                if make_svg_answer == answer_yes:
+                    make_svg = True
+                    svg_filename = PhotoScan.app.getString('Choose a file name for the SVG-Image',
+                                                           'svg_image_file_name')
+                    svg_factor = PhotoScan.app.getInt(
+                        'Select a magnification factor of the error-vector for the SVG-File',
+                        40)
+                    svg_cols = PhotoScan.app.getInt('Select the number of columns used to generate the overview image',
+                                                    20)
+
+                make_stl_answer = PhotoScan.app.getString(
+                    'Do you want to create a STL-Mesh with Point-Error-Ellipsoids?', answer_yes)
+                if make_stl_answer == answer_yes:
+                    make_stl = True
+                    stl_filename = PhotoScan.app.getString('Choose a file name for the STL-File', 'stl_file_name')
+                    stl_factor = PhotoScan.app.getInt('Choose a magnification factor of the ellipsoid-axis', 100)
 
         project = I3_Project(chunk)
+
         if make_report:
             project.save_and_print_report(report_filename)
+            PhotoScan.app.update()
 
         if make_svg:
             project.create_project_SVG(svg_filename, svg_factor, svg_cols)
+            PhotoScan.app.update()
 
         if make_stl:
             project.export_STL(stl_filename, factor=stl_factor)
+            PhotoScan.app.update()
+
 
     else:
         print("Please open a Project with completed photo alignment")
-
-
-
