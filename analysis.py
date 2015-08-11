@@ -260,7 +260,7 @@ class I3_Project():
         filename += ".scad"
         adjustment = Peseudo_3D_intersection_adjustment(self.__get_point_photos_reference())
 
-        ellipsoid_parameter_list = adjustment._get_eigvalues_eigvectors_pos_for_track_id()
+        ellipsoid_parameter_list = adjustment._get_eigvalues_eigvectors_pos_cov_for_track_id()
         output_str = "factor = 0.051;\n"
         for ellipsoid_parameter in ellipsoid_parameter_list:
             eig_val, eig_vec, pos = ellipsoid_parameter
@@ -285,7 +285,7 @@ class I3_Project():
         if self.adjustment is None:
             self.adjustment = Peseudo_3D_intersection_adjustment(self.__get_point_photos_reference())
 
-        ellipsoid_parameter_list = self.adjustment._get_eigvalues_eigvectors_pos_for_track_id()
+        ellipsoid_parameter_list = self.adjustment._get_eigvalues_eigvectors_pos_cov_for_track_id()
         output_str = "solid Ellipsoids\n"
 
         stl_handler = STL_Handler()
@@ -305,7 +305,7 @@ class I3_Project():
         else:
             data = []
             for ellipsoid_parameter in ellipsoid_parameter_list:
-                eig_val, eig_vec, pos = ellipsoid_parameter
+                eig_val, eig_vec, pos, cov = ellipsoid_parameter
                 data.extend(stl_handler.create_ellipsoid_stl(eig_vec, eig_val, pos, factor, True))
             with open(self.directory + '\\' + filename, 'wb') as fp:
                 writer = Binary_STL_Writer(fp)
@@ -320,16 +320,22 @@ class I3_Project():
 
         if self.adjustment is None:
             self.adjustment = Peseudo_3D_intersection_adjustment(self.__get_point_photos_reference())
-        ellipsoid_list = self.adjustment._get_eigvalues_eigvectors_pos_for_track_id()
+
+        ellipsoid_list = self.adjustment._get_eigvalues_eigvectors_pos_cov_for_track_id()
 
         export_str = "xc yc zc\n" \
                      "xr.x xr.y xr.z\n" \
                      "yr.x yr.y yr.z\n" \
-                     "zr.x zr.y zr.z\n"
+                     "zr.x zr.y zr.z\n" \
+                     "C11 C12 C13\n" \
+                     "C21 C22 C23\n" \
+                     "C31 C32 C33\n"
+
         for ellipsoid in ellipsoid_list:
             eigVal = PhotoScan.Vector(ellipsoid[0])
             eigVecs = PhotoScan.Matrix(ellipsoid[1])
             pos = PhotoScan.Vector(ellipsoid[2])
+            cov = ellipsoid[3]
 
             xr = list(eigVecs.col(0) * eigVal[0])
             yr = list(eigVecs.col(1) * eigVal[1])
@@ -338,10 +344,14 @@ class I3_Project():
             yc = pos[1]
             zc = pos[2]
             export_str += "{:.2e} {:.2e} {:.2e}\n".format(xc, yc, zc)
+
             export_str += "{:.2e} {:.2e} {:.2e}\n".format(xr[0], xr[1], xr[2])
             export_str += "{:.2e} {:.2e} {:.2e}\n".format(yr[0], yr[1], yr[2])
             export_str += "{:.2e} {:.2e} {:.2e}\n".format(zr[0], zr[1], zr[2])
 
+            export_str += "{:.4e} {:.4e} {:.4e}\n".format(cov[0, 0], cov[0, 1], cov[0, 2])
+            export_str += "{:.4e} {:.4e} {:.4e}\n".format(cov[1, 0], cov[1, 1], cov[1, 2])
+            export_str += "{:.4e} {:.4e} {:.4e}\n".format(cov[2, 0], cov[2, 1], cov[2, 2])
         f = open(self.directory + '\\' + filename, 'w')
         f.write(export_str)
         f.close()
@@ -415,10 +425,16 @@ class I3_Project():
                     point_W = points[point_index].coord
                     point_C = T.mulp(point_W)
                     point_I = calib.project(point_C)
+                    # print("-------------",track_id)
+                    # print("center",calib.project(PhotoScan.Vector([0,0,1])))
 
+                    # print("PointW",point_W)
+                    # print("PointC ",point_C)
+                    # print("point_I proj", point_I )
                     measurement_I = proj.coord
                     measurement_C = calib.unproject(measurement_I)
-
+                    # print("measI",measurement_I)
+                    # print("mearC",measurement_C)
                     # error_I = calib.error(point_C, measurement_I)
 
                     # error_C = point_C - measurement_C * point_C.z
@@ -646,14 +662,14 @@ class Peseudo_3D_intersection_adjustment():
 
         return eigenvalues, eigenvector
 
-    def _get_eigvalues_eigvectors_pos_for_track_id(self, track_id=None):
+    def _get_eigvalues_eigvectors_pos_cov_for_track_id(self, track_id=None):
         """
         returns a list of a tuple of Eigenvalue, Eigenvector and Position for
         a track_id. if no id is passed it returns a list of all points
 
         :type track_id: int
         :param track_id: track_id or None. i
-        :rtype : (list[float],list[list[float]],list[float])
+        :rtype : (list[float],list[list[float]],list[float],list[list[float]])
         """
 
         if track_id:
@@ -664,7 +680,7 @@ class Peseudo_3D_intersection_adjustment():
         return_list = []
 
         for track_id in list_of_track_ids:
-            cov = self.__get_cov_for_point(track_id)
+            cov = self.get_cov_for_point(track_id)
 
             eig_val, eig_vec = self._get_eigen_vel_vec(cov)
             pos_vector = None
@@ -673,15 +689,15 @@ class Peseudo_3D_intersection_adjustment():
                     pos_vector = point.coord_W
             # pos_vector = self.points[track_id][0].points[track_id].coord_W
             pos = [pos_vector.x, pos_vector.y, pos_vector.z]
-            return_list.append((eig_val, eig_vec, pos))
+            return_list.append((eig_val, eig_vec, pos, cov))
         return return_list
 
-    def __get_cov_for_point(self, track_id):
+    def get_cov_for_point(self, track_id):
         """
         calculate the covarianze matrix for one point
         :param track_id: id of a 3D Point
         :return: 3x3 Cov-Matrix
-        :rtype : list[list[float]]
+        :rtype : PhotoScan.Matrix
         """
         jacobian_matrix, X_vector, L_vector = self.get_jacobian(track_id)
 
@@ -1444,6 +1460,8 @@ if __name__ == '__main__':
                 howto += '-svgcols [columns]\t\tThe number of columns used to generate the overview image (default: 20)\n'
                 howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoids. Option: filename (default: stl_export)\n'
                 howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)'
+                howto += '-export_ellipsoid \t\t Export a ellipsoid file'
+
                 howto += '\n\nSample:\n'
                 howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
                 howto += '\n\nGUI\n'
@@ -1499,7 +1517,11 @@ if __name__ == '__main__':
                     stl_filename = PhotoScan.app.getString('Choose a file name for the STL-File', 'stl_file_name')
                     stl_factor = PhotoScan.app.getInt('Choose a magnification factor of the ellipsoid-axis', 100)
 
-            elif arg == '-exp_ellipsoid':
+                export_ellipsoid_answer = PhotoScan.app.getString('Do you want to export a ellipsoid file?', answer_yes)
+                if export_ellipsoid_answer == answer_yes:
+                    export_ellipsoid = True
+
+            elif arg == '-export_ellipsoids':
                 export_ellipsoid = True
 
         project = I3_Project(chunk)
