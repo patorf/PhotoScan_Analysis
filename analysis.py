@@ -1427,7 +1427,8 @@ if __name__ == '__main__':
     make_stl = False
     stl_filename = None
     stl_factor = None
-    export_ellipsoid = None
+    export_ellipsoid = False
+    ellipsoidFilename = None
 
     def check_next_argument(current_argument_index):
 
@@ -1445,7 +1446,7 @@ if __name__ == '__main__':
 
         if len(sys.argv) == 1:
             sys.argv.append('help')
-        print('PhotoScan Analysis v0.1')
+        print('PhotoScan Analysis v0.2')
 
         for i, arg in enumerate(sys.argv):
 
@@ -1454,13 +1455,13 @@ if __name__ == '__main__':
             if arg == 'help':
                 howto = 'HowTo:\n'
                 howto += 'Command Line Arguments:\n'
-                howto += '-rout [filename]\t\tCreates a report file. Options: filename (default: report)\n'
+                howto += '-report_out [filename]\t\tCreates a report file. Options: filename (default: report)\n'
                 howto += '-svgout [filename]\t\tCreates a SVG-Image with image-measurements Option: filename (default: image_measurements\n'
                 howto += '-svgfactor [factor]\t\tMagnification factor of the error-vector for the SVG-File (default: 40)\n'
                 howto += '-svgcols [columns]\t\tThe number of columns used to generate the overview image (default: 20)\n'
                 howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoids. Option: filename (default: stl_export)\n'
-                howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)'
-                howto += '-export_ellipsoid \t\t Export a ellipsoid file'
+                howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)\n'
+                howto += '-export_ellipsoid [filename] \t\t Export a ellipsoid file\n'
 
                 howto += '\n\nSample:\n'
                 howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
@@ -1468,7 +1469,7 @@ if __name__ == '__main__':
                 howto += 'You can also use the GUI by choosing the argument \'-useGUI\''
                 print(howto)
                 break
-            if arg == '-rout':
+            if arg == '-report_out':
                 report_filename = check_next_argument(i)
                 make_report = True
 
@@ -1522,6 +1523,7 @@ if __name__ == '__main__':
                     export_ellipsoid = True
 
             elif arg == '-export_ellipsoids':
+                ellipsoidFilename = check_next_argument(i)
                 export_ellipsoid = True
 
         project = I3_Project(chunk)
@@ -1538,7 +1540,7 @@ if __name__ == '__main__':
             project.export_STL(stl_filename, factor=stl_factor)
             PhotoScan.app.update()
         if export_ellipsoid:
-            project.exportEllipsoids()
+            project.exportEllipsoids(ellipsoidFilename)
             PhotoScan.app.update()
 
 
