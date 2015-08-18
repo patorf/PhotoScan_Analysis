@@ -1,7 +1,7 @@
 """
-PhotoScan Analyse 0.2
+PhotoScan Analyse 0.3
 """
-
+version = "0.3"
 import copy
 import os
 import re
@@ -188,6 +188,7 @@ class I3_Point():
         self.track_id = track_id
         self.coord_W = coord_W
         self.coord_C = coord_C
+        self.intersection_cout = 0
 
     @property
     def error_I(self):
@@ -400,6 +401,8 @@ class I3_Project():
         points = point_cloud.points
         npoints = len(points)
         projections = chunk.point_cloud.projections
+
+        w_point_construction_cout = {}
         for camera in chunk.cameras:
 
             if not camera.transform:
@@ -442,6 +445,14 @@ class I3_Project():
                     # print(point_C)
                     # print(measurement_C)
                     # save Point in curren Photo
+
+                    # cout from how many photos a point is created
+                    if track_id in w_point_construction_cout:
+                        w_point_construction_cout[track_id] += 1
+                    else:
+                        # first time ot this track id
+                        w_point_construction_cout[track_id] = 1
+
                     if point_I:
                         point = this_photo.add_point()
 
@@ -452,6 +463,13 @@ class I3_Project():
                         point.coord_W = point_W
                         point.measurement_C = measurement_C
                         # point.projection_C = error_C
+
+        for photo in self.photos:
+            for point in photo.points:
+                point.intersection_cout = w_point_construction_cout[point.track_id]
+
+
+
 
     def save_and_print_report(self, filename=None):
         """
@@ -510,10 +528,14 @@ class I3_Project():
         summery, height = summery_SVG.get_raw_error_vector_svg(factor=error_factor)
 
         s.addElement(summery)
+
+        #Summery Cout Raster
         summery_group = g()
         summery_error_raster, height = summery_SVG.get_raw_error_vector_svg(as_raster=True,
-                                                                            factor=error_factor, cols=cols)
-        summery_count_raster = summery_SVG.get_raster_count_svg(cols)
+                                                                            factor=error_factor, cols=cols,
+                                                                            option="frequency")
+        summery_count_raster = summery_SVG.get_raster_count_svg(cols, option="frequency")
+
 
         legend = summery_SVG.count_legend
 
@@ -524,6 +546,34 @@ class I3_Project():
         summery_group.addElement(summery_count_raster)
         summery_group.addElement(summery_error_raster)
         summery_group.addElement(legend)
+
+        # Summery Intersection Raster
+
+
+        summery_intersection_raster = summery_SVG.get_raster_count_svg(cols, option="intersections")
+        summery_error_raster_for_intersections, height = summery_SVG.get_raw_error_vector_svg(as_raster=True,
+                                                                                              factor=error_factor,
+                                                                                              cols=cols,
+                                                                                              option="intersections")
+
+        legend = summery_SVG.intersection_legend
+
+        trans_legend = TransformBuilder()
+        trans_legend.setTranslation(605, height + 20)
+        legend.set_transform(trans_legend.getTransform())
+
+        trans_intersction_raster = TransformBuilder()
+        trans_intersction_raster.setTranslation(0, height + 20)
+        summery_intersection_raster.set_transform(trans_intersction_raster.getTransform())
+
+        trans_summery_intersection = TransformBuilder()
+        trans_summery_intersection.setTranslation(0, height)
+        summery_error_raster_for_intersections.set_transform(trans_summery_intersection.getTransform())
+
+        summery_group.addElement(summery_intersection_raster)
+        summery_group.addElement(summery_error_raster_for_intersections)
+        summery_group.addElement(legend)
+
 
         # Group Transformation
         trans_raster = TransformBuilder()
@@ -1086,6 +1136,7 @@ class SVG_Photo_Representation():
         self.circle_stroke = 1
         self.p_sigma = None  # todo: p_sigma bestimmen
         self.count_legend = None
+        self.intersection_legend = None
 
     @property
     def points(self):
@@ -1094,7 +1145,7 @@ class SVG_Photo_Representation():
             points.extend(photo.points)
         return points
 
-    def set_count_legend(self, colormap, min_max):
+    def set_raster_legend(self, colormap, min_max, option="frequency"):
         """
         generate the legend of the raster image.
         :param colormap:
@@ -1106,11 +1157,17 @@ class SVG_Photo_Representation():
         cat_borders, cat_size = self.__class__.get_categroy_ranges(min_max, colormap)
         shape_builder = ShapeBuilder()
 
-        title = text("point count per cell", 0, -4)
+        title = None
+        if option == "frequency":
+            title = text("point count per cell", 0, -4)
+        elif option == "intersections":
+            title = text("intersections per cell", 0, -4)
+
+
         group.addElement(title)
 
         color_rec = shape_builder.createRect(0, height, 20, 20, strokewidth=1, fill='white')
-        label = text("&lt; {:9.2f}".format(1), 30, 16)
+        label = text("&lt; {:9.2f}".format(min_max[0]), 30, 16)
         height = 20
 
         group.addElement(label)
@@ -1123,13 +1180,16 @@ class SVG_Photo_Representation():
             group.addElement(label)
             group.addElement(color_rec)
 
-        self.count_legend = group
+        if option == "frequency":
+            self.count_legend = group
+        elif option == "intersections":
+            self.intersection_legend = group
 
         # draw label
 
         return group
 
-    def get_lable(self, as_raster=False):
+    def get_lable(self, as_raster=False, option="frequency"):
         """
         returns tha lable of the photo.
         :return:
@@ -1139,7 +1199,10 @@ class SVG_Photo_Representation():
         # if overview photo
         label = None
         if as_raster:
-            label = text("Images Error Raster Summery", *self.labelpos)
+            if option == "frequency":
+                label = text("Images Error Raster Summery", *self.labelpos)
+            elif option == "intersections":
+                label = text("Point Intersection Raster Summery", *self.labelpos)
         else:
             label = text("Images Error Summery", *self.labelpos)
         # if normal photo
@@ -1151,7 +1214,7 @@ class SVG_Photo_Representation():
 
         return label
 
-    def get_raw_error_vector_svg(self, as_raster=False, factor=40, cols=22):
+    def get_raw_error_vector_svg(self, as_raster=False, factor=40, cols=22, option="frequency"):
         """
         get a photo svg with error vectors. if as_raster is true then the errors are summarized
         :param as_raster:
@@ -1162,7 +1225,7 @@ class SVG_Photo_Representation():
         shape_builder = ShapeBuilder()
         photo_group = g()
 
-        label = self.get_lable(as_raster)
+        label = self.get_lable(as_raster, option)
         photo_group.addElement(label)
 
         image_group = g()
@@ -1214,10 +1277,12 @@ class SVG_Photo_Representation():
         :param colormap:
         :return:
         """
+        if val < min_max[0]:
+            return colormap[0]
+
         min_val = min_max[0]
         cat_size = cls.get_categroy_ranges(min_max, colormap)[1]
-        cat_value = int((val - min_val) / cat_size)
-
+        cat_value = int((val - min_val - 0.00001) / cat_size)
         return colormap[cat_value]
 
     @classmethod
@@ -1229,6 +1294,7 @@ class SVG_Photo_Representation():
         :param colormap:
         :return:
         """
+
         min_val = min_max[0] - 0.00000001
         max_val = min_max[1] + 0.00000001
         val_range = max_val - min_val
@@ -1236,10 +1302,11 @@ class SVG_Photo_Representation():
         cat_size = val_range / cat_count
         cat_border = []
         for i, color in enumerate(colormap):
-            cat_border.append((i + 1) * cat_size)
+            cat_border.append((i + 1) * cat_size + min_val)
+
         return cat_border, cat_size
 
-    def get_raster_count_svg(self, cols):
+    def get_raster_count_svg(self, cols, option="frequency"):
         """
         get the raster image
         :param cols:
@@ -1253,23 +1320,58 @@ class SVG_Photo_Representation():
 
         for i, col in enumerate(coutn_raster):
             for j, row in enumerate(col):
-                min_max_list.append(len(row))
+                if option == "frequency":
 
-        max_count = min(min_max_list)
-        min_count = max(min_max_list)
+                    min_max_list.append(len(row))
+                elif option == "intersections":
+                    if 0 != len(row):
+                        intersection_cout_sum = 0
+                        for point in row:
+                            intersection_cout_sum += point.intersection_cout
+                        # print("sum",intersection_cout_sum)
+                        # print('cout', len(row))
+                        # print(intersection_cout_sum/len(row))
+                        min_max_list.append(intersection_cout_sum / len(row))
+                    else:
+                        pass
+                        #min_max_list.append(0)
 
-        min_max.extend((max_count, min_count))
-        self.set_count_legend(self.colormap, min_max)
+        max_count = max(min_max_list)
+        min_count = min(min_max_list)
+
+        min_max.extend((min_count, max_count))
+
+        self.set_raster_legend(self.colormap, min_max, option)
 
         for i, col in enumerate(coutn_raster):
             for j, row in enumerate(col):
-                coutn_raster[i][j] = len(row)
+                # coutn_raster[i][j] = len(row)
+                value_to_display = None
+                if option == "frequency":
+                    value_to_display = len(row)
+                elif option == "intersections":
+                    value_to_display = 0
+
+                    if 0 != len(row):
+                        intersection_cout_sum = 0
+                        for point in row:
+                            intersection_cout_sum += point.intersection_cout
+                        # print("sum",intersection_cout_sum)
+                        # print('cout', len(row))
+
+                        value_to_display = intersection_cout_sum / len(row)
+                # if i==0 and j==25:
+                #     print('###########')
+                #     print(coutn_raster[i][j])
+                #     print(coutn_raster[i][j][0].intersection_cout)
+                #     print(value_to_display)
+                #     print(SVG_Photo_Representation.get_color_4_value(min_max, value_to_display, self.colormap))
 
                 pos_x, pos_y = self.transform_2_SVG(j * size, i * size)
                 size_svg = self.transform_2_SVG(size, size)[0]
-
-                color = SVG_Photo_Representation.get_color_4_value(min_max, len(row), self.colormap)
-                if len(row) <= 1:
+                # print(value_to_display)
+                color = SVG_Photo_Representation.get_color_4_value(min_max, value_to_display, self.colormap)
+                if len(row) < 1:
                     color = 'white'
                 count_rect = shape_builder.createRect(pos_x,
                                                       pos_y,
@@ -1446,7 +1548,7 @@ if __name__ == '__main__':
 
         if len(sys.argv) == 1:
             sys.argv.append('help')
-        print('PhotoScan Analysis v0.2')
+        print('PhotoScan Analysis v'+version)
 
         for i, arg in enumerate(sys.argv):
 

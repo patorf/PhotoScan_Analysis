@@ -221,7 +221,7 @@ class TestSVG_Photo_Representation(unittest.TestCase):
     def test_raster_legend(self):
         photo = I3_Photo()
         svg_photo = self.getSVGObject()
-        svg_photo.set_count_legend(SVG_Photo_Representation.colormap, [1, 9])
+        svg_photo.set_raster_legend(SVG_Photo_Representation.colormap, [1, 9])
 
         print(svg_photo.count_legend.getXML())
 
