@@ -1,7 +1,7 @@
 """
-PhotoScan Analyse 0.3
+PhotoScan Analyse 0.4
 """
-version = "0.3"
+version = "0.4"
 import copy
 import os
 import re
@@ -170,7 +170,7 @@ class I3_Point():
     :ivar projection_I: reprojection of the world point into the image plane in meter
     :ivar measurement_I: measurement of the feature in pixel
     :ivar track_id: global id of the point in meter
-    :ivar coord_W: world coordinates of the point in meter
+    :ivar coord_Chunk: chunk coordinates of the point in meter
     :ivar coord_C: camera coordinates of the point in meter
     """
 
@@ -179,14 +179,14 @@ class I3_Point():
                  measurement_I=None,
                  measurement_C=None,
                  track_id=None,
-                 coord_W=None,
+                 coord_Chunk=None,
                  coord_C=None,
                  ):
         self.projection_I = projection_I
         self.measurement_I = measurement_I
         self.measurement_C = measurement_C
         self.track_id = track_id
-        self.coord_W = coord_W
+        self.coord_Chunk = coord_Chunk
         self.coord_C = coord_C
         self.intersection_cout = 0
 
@@ -207,6 +207,14 @@ class I3_Point():
         point_on_image_plane = self.coord_C / self.coord_C.z
         return point_on_image_plane - self.measurement_C
 
+    @property
+    def coord_W(self):
+        transform_Chunk2W = PhotoScan.app.document.chunk.transform.matrix
+
+        coord_chunk_homogen = self.coord_Chunk
+        coord_chunk_homogen.size = 4
+        coord_chunk_homogen.w = 1
+        return transform_Chunk2W * self.coord_Chunk
 
 class I3_Project():
     """
@@ -425,13 +433,13 @@ class I3_Project():
                     if not points[point_index].valid:
                         continue
 
-                    point_W = points[point_index].coord
-                    point_C = T.mulp(point_W)
+                    point_Chunk = points[point_index].coord
+                    point_C = T.mulp(point_Chunk)
                     point_I = calib.project(point_C)
                     # print("-------------",track_id)
                     # print("center",calib.project(PhotoScan.Vector([0,0,1])))
 
-                    # print("PointW",point_W)
+                    # print("PointW",point_Chunk)
                     # print("PointC ",point_C)
                     # print("point_I proj", point_I )
                     measurement_I = proj.coord
@@ -460,7 +468,7 @@ class I3_Project():
                         point.projection_I = point_I
                         point.measurement_I = measurement_I
                         point.coord_C = point_C
-                        point.coord_W = point_W
+                        point.coord_Chunk = point_Chunk
                         point.measurement_C = measurement_C
                         # point.projection_C = error_C
 
@@ -736,6 +744,7 @@ class Peseudo_3D_intersection_adjustment():
             pos_vector = None
             for point in self.points[track_id][0].points:
                 if point.track_id == track_id:
+                    # pos_vector = point.coord_Chunk
                     pos_vector = point.coord_W
             # pos_vector = self.points[track_id][0].points[track_id].coord_W
             pos = [pos_vector.x, pos_vector.y, pos_vector.z]
@@ -804,8 +813,17 @@ class Peseudo_3D_intersection_adjustment():
             L_vector_for_cam = []
 
             paramerter_type = X_vector_element.paramerter_type_cam
-            R_t = photo.photoScan_camera.transform
 
+            transform_Chunk2W = PhotoScan.app.document.chunk.transform.matrix
+            R_t = photo.photoScan_camera.transform
+            # etweder von links oder rechts
+            R_t = transform_Chunk2W * R_t
+            cam_center_x = R_t[0, 3]
+            cam_center_y = R_t[1, 3]
+            cam_center_z = R_t[2, 3]
+
+
+            #  center_x = photo.photoScan_camera.transform *
             R = PhotoScan.Matrix([[R_t[0, 0], R_t[0, 1], R_t[0, 2]],
                                   [R_t[1, 0], R_t[1, 1], R_t[1, 2]],
                                   [R_t[2, 0], R_t[2, 1], R_t[2, 2]]])
@@ -813,11 +831,11 @@ class Peseudo_3D_intersection_adjustment():
                                      X_vector_element.value_type_R,
                                      R,
                                      photo.label)
-            cam_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, photo.photoScan_camera.center.x,
+            cam_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, cam_center_x,
                                      photo.label)
-            cam_Y = X_vector_element(paramerter_type, X_vector_element.value_type_Y, photo.photoScan_camera.center.y,
+            cam_Y = X_vector_element(paramerter_type, X_vector_element.value_type_Y, cam_center_y,
                                      photo.label)
-            cam_Z = X_vector_element(paramerter_type, X_vector_element.value_type_Z, photo.photoScan_camera.center.z,
+            cam_Z = X_vector_element(paramerter_type, X_vector_element.value_type_Z, cam_center_z,
                                      photo.label)
 
             X_vector_for_cam.extend([cam_X, cam_Y, cam_Z, cam_R])
@@ -826,6 +844,7 @@ class Peseudo_3D_intersection_adjustment():
 
             for point in photo.points:
                 if point.track_id == track_id:
+                    #self.points_pos[track_id] = point.coord_Chunk
                     self.points_pos[track_id] = point.coord_W
                     paramerter_type = X_vector_element.paramerter_type_point
                     point_X = X_vector_element(paramerter_type, X_vector_element.value_type_X, point.coord_W.x,
@@ -1563,7 +1582,7 @@ if __name__ == '__main__':
                 howto += '-svgcols [columns]\t\tThe number of columns used to generate the overview image (default: 20)\n'
                 howto += '-stlout [filename]\t\tCreate a STL-Mesh with Point-Error-Ellipsoids. Option: filename (default: stl_export)\n'
                 howto += '-stlfactor [factor]\t\tMagnification factor of the ellipsoid-axis (default: 100)\n'
-                howto += '-export_ellipsoid [filename] \t\t Export a ellipsoid file\n'
+                howto += '-export_ellipsoids [filename] \t\t Export a ellipsoid file\n'
 
                 howto += '\n\nSample:\n'
                 howto += '-rout reportname -svgout svgname -svgfactor 12 -svgcols 10 -stlout stlname -stlfactor 12'
