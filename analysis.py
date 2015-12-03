@@ -1,7 +1,7 @@
 """
 PhotoScan Analyse 0.4
 """
-version = "0.4"
+version = "0.4.1"
 import copy
 import os
 import re
@@ -434,7 +434,9 @@ class I3_Project():
                         continue
 
                     point_Chunk = points[point_index].coord
-                    point_C = T.mulp(point_Chunk)
+
+                    point_C = T * point_Chunk
+                    point_C.size = 3
                     point_I = calib.project(point_C)
                     # print("-------------",track_id)
                     # print("center",calib.project(PhotoScan.Vector([0,0,1])))
