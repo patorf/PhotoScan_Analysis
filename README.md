@@ -90,3 +90,8 @@ v0.2   [added] export of the ellipsoid parameter (.ell)
 v0.3   [added] overview with average number of ray intersection per cell  
 v0.4   [added] transformation from chunk to world coordinates   
 v0.4.1 [update] photoscan 1.2 only support multiplication with a vector
+
+## Used Source Code
+- svd.py  GNU-License (http://stitchpanorama.sourceforge.net/Python/svd.py)
+- STL_Writer.py MIT-License (https://github.com/jv4779/spin_mirror/blob/master/STL_Writer.py)
+- pysvg BSD-License (http://codeboje.de/pysvg/)
