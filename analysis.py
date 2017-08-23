@@ -532,6 +532,7 @@ class I3_Project():
 
         s = svg()
 
+
         summery_SVG = SVG_Photo_Representation(self.photos)
         summery_SVG.point_radius = 1
 
@@ -783,7 +784,7 @@ class Peseudo_3D_intersection_adjustment():
         for L_element in L_vector:
             k_l = L_element.sigma ** 2
             K_ll_diag.append(k_l)
-        K_ll = PhotoScan.Matrix.diag(K_ll_diag)
+        K_ll = PhotoScan.Matrix.Diag(K_ll_diag)
         Q_ll = 1 / sigma0 ** 2 * K_ll
         # Invers is only allowd for 4x4 Matrix. Invers of diag-matrix is 1/A[i,i]
         for i in range(0, Q_ll.size[0]):
@@ -1074,7 +1075,7 @@ class STL_Handler():
             map(lambda x: x * factor,
                 [sqrt(sorted_eigenvalue[0]), sqrt(sorted_eigenvalue[1]), sqrt(sorted_eigenvalue[2])]))
 
-        scale_matrix = PhotoScan.Matrix.diag(scale)
+        scale_matrix = PhotoScan.Matrix.Diag(scale)
 
         rot_x = PhotoScan.Matrix([[1, 0, 0],
                                   [0, math.cos(alpha), -math.sin(alpha)],
