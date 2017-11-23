@@ -1,7 +1,7 @@
 """
-PhotoScan Analyse 0.4
+PhotoScan Analyse 0.4.2
 """
-version = "0.4.1"
+version = "0.4.2"
 import copy
 import os
 import re
@@ -389,7 +389,8 @@ class I3_Project():
 
     def __save_thumbnails(self):
         for photo in self.photos:
-            thumbnail_path = self.directory + '/' + photo.label
+            thumbnail_path = self.directory + '/' + photo.label.lower()
+
             success = photo.photoScan_camera.thumbnail.image().save(thumbnail_path)
 
             if success:
@@ -1666,7 +1667,7 @@ if __name__ == '__main__':
         if export_ellipsoid:
             project.exportEllipsoids(ellipsoidFilename)
             PhotoScan.app.update()
-
+        print('analyse finished!')
 
     else:
         print("Please open a Project with completed photo alignment")
