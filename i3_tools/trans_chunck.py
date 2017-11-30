@@ -1,6 +1,6 @@
 import tkinter as tk
 
-# import PhotoScan
+import PhotoScan
 
 
 input_field = False
@@ -37,7 +37,7 @@ def transform_chunck():
         lines = text.splitlines()
         lines = list(filter(lambda x: len(x) > 2, lines))
 
-        print("Do Transform!")
+        print("Do Transform")
         matrix_list = []
         if len(lines) != 4:
             print("unvalid number of rows")
@@ -56,9 +56,11 @@ def transform_chunck():
         PhotoScan.app.document.chunk.transform.matrix = trafo_matrix
         print(PhotoScan.app.document.chunk.transform.matrix)
 
-    except:
+        label.config(text='transformation succesful!')
+    except Exception as e:
+        print(e)
         label.config(text='The Matrix is not valid.\n'
-                          'Please use a 4x4 Matrix with blanks as seperator')
+                          ' Please use a 4x4 Matrix with blanks as seperator')
 
 
         # trans_chunck_init()
