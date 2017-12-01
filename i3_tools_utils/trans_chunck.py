@@ -13,13 +13,13 @@ def trans_chunck_init():
     global label
     print('init Transform Chunck')
 
-    input_field = tk.Text(top, width=60, height=10)
+    input_field = tk.Text(top, width=90, height=10)
     input_field.pack()
     defaluttext = '1.000000 0.000000 0.000000 0.000000\n0.000000 1.000000 0.000000 0.000000\n0.000000 0.000000 1.000000 0.000000\n0.000000 0.000000 0.000000 1.000000\n'
-
+    defaluttext = uti_ps_matrix2string(PhotoScan.app.document.chunk.transform.matrix)
     input_field.insert("1.0", defaluttext)
     transform_chunk_btn = tk.Button(top,
-                                    text='transform chunck!',
+                                    text='transform chunck_!',
                                     command=transform_chunck)
 
     transform_chunk_btn.pack()
@@ -55,7 +55,6 @@ def transform_chunck():
         trafo_matrix = PhotoScan.Matrix(matrix_list)
         PhotoScan.app.document.chunk.transform.matrix = trafo_matrix
         print(PhotoScan.app.document.chunk.transform.matrix)
-
         label.config(text='transformation succesful!')
     except Exception as e:
         print(e)
@@ -64,3 +63,15 @@ def transform_chunck():
 
 
         # trans_chunck_init()
+
+
+def uti_ps_matrix2string(ps_matrix):
+    output_string = ""
+    j = 1
+    for i in ps_matrix:
+        seperator = " "
+        if j % 4 == 0:
+            seperator = '\n'
+        output_string += "{0:.7f}".format(i) + seperator
+        j += 1
+    return output_string

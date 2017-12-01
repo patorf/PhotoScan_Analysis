@@ -2,9 +2,9 @@ import PhotoScan
 
 import importlib
 
-import i3_tools.trans_chunck
+import i3_tools_utils.trans_chunck
 
-trans_chunck = importlib.reload(i3_tools.trans_chunck)
+trans_chunck = importlib.reload(i3_tools_utils.trans_chunck)
 
 
 def init():
