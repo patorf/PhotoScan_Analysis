@@ -1618,6 +1618,7 @@ if __name__ == '__main__':
             elif arg == '-useGUI':
 
                 answer_yes = 'Yes'
+                answer_no = 'No'
                 make_report_answer = PhotoScan.app.getString('Do you want to create a report file?', answer_yes)
                 if make_report_answer == answer_yes:
                     make_report = True
@@ -1637,7 +1638,7 @@ if __name__ == '__main__':
                                                     20)
 
                 make_stl_answer = PhotoScan.app.getString(
-                    'Do you want to create a STL-Mesh with Point-Error-Ellipsoids?', answer_yes)
+                    'Do you want to create a STL-Mesh with Point-Error-Ellipsoids?', answer_no)
                 if make_stl_answer == answer_yes:
                     make_stl = True
                     stl_filename = PhotoScan.app.getString('Choose a file name for the STL-File', 'stl_file_name')
